@@ -69,25 +69,26 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
 
 
 const initialAttendanceData = [
-    { id: "att-1", employeeId: "emp-1", name: "Budi Santoso", date: "2024-07-28", status: "Hadir", notes: "" },
-    { id: "att-2", employeeId: "emp-2", name: "Citra Lestari", date: "2024-07-28", status: "Hadir", notes: "" },
-    { id: "att-3", employeeId: "emp-3", name: "Doni Firmansyah", date: "2024-07-28", status: "Tidak Hadir", notes: "" },
-    { id: "att-4", employeeId: "emp-4", name: "Eka Putri", date: "2024-07-28", status: "Telat", notes: "Bocor ban di jalan" },
-    { id: "att-5", employeeId: "emp-1", name: "Budi Santoso", date: "2024-07-27", status: "Hadir", notes: "" },
-    { id: "att-6", employeeId: "emp-2", name: "Citra Lestari", date: "2024-07-21", status: "Hadir", notes: "" },
-    { id: "att-7", employeeId: "emp-3", name: "Doni Firmansyah", date: "2024-06-24", status: "Hadir", notes: "" },
+    { id: "att-1", employeeId: "emp-1", name: "Budi Santoso", position: "Staf Produksi", date: "2024-07-28", status: "Hadir", notes: "" },
+    { id: "att-2", employeeId: "emp-2", name: "Citra Lestari", position: "Staf Marketing", date: "2024-07-28", status: "Hadir", notes: "" },
+    { id: "att-3", employeeId: "emp-3", name: "Doni Firmansyah", position: "Staf Gudang", date: "2024-07-28", status: "Tidak Hadir", notes: "" },
+    { id: "att-4", employeeId: "emp-4", name: "Eka Putri", position: "Admin", date: "2024-07-28", status: "Telat", notes: "Bocor ban di jalan" },
+    { id: "att-5", employeeId: "emp-1", name: "Budi Santoso", position: "Staf Produksi", date: "2024-07-27", status: "Hadir", notes: "" },
+    { id: "att-6", employeeId: "emp-2", name: "Citra Lestari", position: "Staf Marketing", date: "2024-07-21", status: "Hadir", notes: "" },
+    { id: "att-7", employeeId: "emp-3", name: "Doni Firmansyah", position: "Staf Gudang", date: "2024-06-24", status: "Hadir", notes: "" },
 ]
 
 type AttendanceRecord = {
     id: string;
     employeeId: string;
     name: string;
+    position: string;
     date: string;
     status: string;
     notes: string;
 };
 
-type NewAttendanceInput = Omit<AttendanceRecord, 'id' | 'name'>;
+type NewAttendanceInput = Omit<AttendanceRecord, 'id' | 'name' | 'position'>;
 
 
 function AttendanceTab() {
@@ -164,6 +165,7 @@ function AttendanceTab() {
             ...input,
             id: `att_${new Date().getTime()}_${input.employeeId}`,
             name: employee?.name || 'Unknown',
+            position: employee?.position || 'Unknown',
         }
     });
 
@@ -356,6 +358,7 @@ function AttendanceTab() {
                 <TableHeader>
                     <TableRow>
                         <TableHead>Nama Karyawan</TableHead>
+                        <TableHead>Posisi</TableHead>
                         <TableHead>Tanggal</TableHead>
                         <TableHead className="w-[180px]">Status Kehadiran</TableHead>
                         <TableHead>Keterangan (jika telat)</TableHead>
@@ -366,6 +369,7 @@ function AttendanceTab() {
                         filteredAttendance.map((employee) => (
                             <TableRow key={employee.id}>
                                 <TableCell className="font-medium">{employee.name}</TableCell>
+                                <TableCell>{employee.position}</TableCell>
                                 <TableCell>{format(parseISO(employee.date), "dd MMM yyyy", { locale: indonesiaLocale })}</TableCell>
                                 <TableCell>
                                     <Select 
@@ -409,7 +413,7 @@ function AttendanceTab() {
                         ))
                     ) : (
                         <TableRow>
-                            <TableCell colSpan={4} className="h-24 text-center">
+                            <TableCell colSpan={5} className="h-24 text-center">
                                 Tidak ada data absensi pada rentang tanggal yang dipilih.
                             </TableCell>
                         </TableRow>
