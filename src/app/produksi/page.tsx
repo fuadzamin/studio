@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useContext, useEffect, useMemo } from "react";
@@ -160,18 +161,32 @@ function BomTab() {
 }
 
 function MaterialStockTab() {
-  const context = useContext(MaterialContext);
-  if (!context) {
+  const materialContext = useContext(MaterialContext);
+  const productContext = useContext(ProductContext);
+
+  if (!materialContext || !productContext) {
     throw new Error(
-      "MaterialStockTab must be used within a MaterialProvider"
+      "MaterialStockTab must be used within a MaterialProvider and ProductProvider"
     );
   }
-  const { materials, addMaterial, updateMaterial, deleteMaterial } = context;
+  const { materials, addMaterial, updateMaterial, deleteMaterial } = materialContext;
+  const { products } = productContext;
 
   const [isAddEditDialogOpen, setAddEditDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [selectedMaterial, setSelectedMaterial] = useState<Material | null>(null);
   const { toast } = useToast();
+
+  const allBomMaterialNames = useMemo(() => {
+    const materialSet = new Set<string>();
+    products.forEach(product => {
+        product.bom.forEach(item => {
+            materialSet.add(item.materialName);
+        });
+    });
+    return Array.from(materialSet);
+  }, [products]);
+
 
   const form = useForm<MaterialFormValues>({
     resolver: zodResolver(materialSchema),
@@ -257,13 +272,30 @@ function MaterialStockTab() {
                     </DialogTitle>
                   </DialogHeader>
                   <div className="grid gap-4 py-4">
-                    <FormField
+                     <FormField
                       control={form.control}
                       name="name"
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>Nama Material</FormLabel>
-                          <FormControl><Input {...field} /></FormControl>
+                          <Select
+                            onValueChange={field.onChange}
+                            defaultValue={field.value}
+                            disabled={!!selectedMaterial}
+                          >
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Pilih nama material" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {allBomMaterialNames.map((name) => (
+                                <SelectItem key={name} value={name}>
+                                  {name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
                           <FormMessage />
                         </FormItem>
                       )}
