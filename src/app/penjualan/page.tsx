@@ -1,8 +1,11 @@
 
 "use client"
 
-import { useState, useContext } from "react"
-import { MoreHorizontal, PlusCircle, Search, FileText, Send, Edit } from "lucide-react"
+import { useState, useContext, useMemo } from "react"
+import { MoreHorizontal, PlusCircle, Search, FileText, Send, Edit, Calendar as CalendarIcon } from "lucide-react"
+import { DateRange } from "react-day-picker"
+import { format, startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfYear, endOfYear, isWithinInterval, parseISO } from "date-fns"
+
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -47,9 +50,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover"
+import { Calendar } from "@/components/ui/calendar"
 import { ProductContext } from "@/contexts/ProductContext"
 import { CustomerContext } from "@/contexts/CustomerContext"
 import { useToast } from "@/hooks/use-toast"
+import { cn } from "@/lib/utils"
 
 
 const initialSalesOrders = [
@@ -90,6 +100,7 @@ export default function PenjualanPage() {
   const [isEditDialogOpen, setEditDialogOpen] = useState(false);
   const [isAddDialogOpen, setAddDialogOpen] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
 
   const productContext = useContext(ProductContext);
   const customerContext = useContext(CustomerContext);
@@ -136,7 +147,7 @@ export default function PenjualanPage() {
       status: "Baru",
     };
     
-    setSalesOrders(prevOrders => [...prevOrders, newOrder]);
+    setSalesOrders(prevOrders => [newOrder, ...prevOrders]);
     toast({
         title: "Sukses!",
         description: "Pesanan penjualan baru berhasil dibuat.",
@@ -160,11 +171,43 @@ export default function PenjualanPage() {
 
   const formatCurrency = (amount: number) => new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", minimumFractionDigits: 0 }).format(amount);
 
-  const filteredOrders = salesOrders.filter(
-    (order) =>
-      order.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      order.customer.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredOrders = useMemo(() => {
+    let filtered = salesOrders.filter(
+      (order) =>
+        order.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        order.customer.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+
+    if (dateRange?.from && dateRange?.to) {
+        filtered = filtered.filter((order) => {
+            const orderDate = startOfDay(parseISO(order.date));
+            return isWithinInterval(orderDate, { start: startOfDay(dateRange.from!), end: endOfDay(dateRange.to!) });
+        });
+    }
+    
+    return filtered;
+  }, [salesOrders, searchTerm, dateRange]);
+
+
+  const handlePresetFilterChange = (value: string) => {
+    const now = new Date();
+    switch (value) {
+        case "today":
+            setDateRange({ from: startOfDay(now), to: endOfDay(now) });
+            break;
+        case "this_week":
+            setDateRange({ from: startOfWeek(now), to: endOfWeek(now) });
+            break;
+        case "this_month":
+            setDateRange({ from: startOfMonth(now), to: endOfMonth(now) });
+            break;
+        case "this_year":
+            setDateRange({ from: startOfYear(now), to: endOfYear(now) });
+            break;
+        default:
+            setDateRange(undefined);
+    }
+  };
 
   return (
     <div className="space-y-8">
@@ -181,20 +224,72 @@ export default function PenjualanPage() {
           <CardDescription>
             Lihat dan kelola semua pesanan penjualan.
           </CardDescription>
-          <div className="flex items-center justify-between pt-4">
-            <div className="relative w-full max-w-sm">
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input
-                type="search"
-                placeholder="Cari pesanan..."
-                className="pl-8"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4">
+             <div className="flex-1 flex flex-col sm:flex-row gap-2 w-full">
+                 <div className="relative w-full max-w-sm">
+                  <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    type="search"
+                    placeholder="Cari pesanan..."
+                    className="pl-8"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                  />
+                </div>
+                 <div className="flex gap-2">
+                    <Select onValueChange={handlePresetFilterChange}>
+                        <SelectTrigger className="w-full sm:w-[150px]">
+                            <SelectValue placeholder="Filter Waktu" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="all">Semua</SelectItem>
+                            <SelectItem value="today">Hari Ini</SelectItem>
+                            <SelectItem value="this_week">Minggu Ini</SelectItem>
+                            <SelectItem value="this_month">Bulan Ini</SelectItem>
+                            <SelectItem value="this_year">Tahun Ini</SelectItem>
+                        </SelectContent>
+                    </Select>
+                    <Popover>
+                        <PopoverTrigger asChild>
+                        <Button
+                            id="date"
+                            variant={"outline"}
+                            className={cn(
+                            "w-full sm:w-[260px] justify-start text-left font-normal",
+                            !dateRange && "text-muted-foreground"
+                            )}
+                        >
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {dateRange?.from ? (
+                            dateRange.to ? (
+                                <>
+                                {format(dateRange.from, "LLL dd, y")} -{" "}
+                                {format(dateRange.to, "LLL dd, y")}
+                                </>
+                            ) : (
+                                format(dateRange.from, "LLL dd, y")
+                            )
+                            ) : (
+                            <span>Pilih tanggal</span>
+                            )}
+                        </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                            initialFocus
+                            mode="range"
+                            defaultMonth={dateRange?.from}
+                            selected={dateRange}
+                            onSelect={setDateRange}
+                            numberOfMonths={2}
+                        />
+                        </PopoverContent>
+                    </Popover>
+                </div>
             </div>
              <Dialog open={isAddDialogOpen} onOpenChange={setAddDialogOpen}>
                 <DialogTrigger asChild>
-                    <Button size="sm">
+                    <Button size="sm" className="w-full sm:w-auto">
                         <PlusCircle className="mr-2 h-4 w-4" />
                         Buat Pesanan Baru
                     </Button>
