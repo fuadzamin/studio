@@ -31,6 +31,7 @@ interface MaterialContextType {
   addMaterial: (materialData: MaterialFormValues) => void;
   updateMaterial: (materialId: string, materialData: MaterialFormValues) => void;
   deleteMaterial: (materialId: string) => void;
+  addStock: (materialName: string, quantity: number, unit: string) => void;
 }
 
 export const MaterialContext = createContext<MaterialContextType | undefined>(undefined);
@@ -58,9 +59,30 @@ export const MaterialProvider = ({ children }: { children: ReactNode }) => {
   const deleteMaterial = (materialId: string) => {
     setMaterials(prev => prev.filter(m => m.id !== materialId));
   };
+  
+  const addStock = (materialName: string, quantity: number, unit: string) => {
+    setMaterials(prev => {
+        const existingMaterial = prev.find(m => m.name === materialName);
+        if (existingMaterial) {
+            return prev.map(m => 
+                m.name === materialName 
+                ? { ...m, stock: m.stock + quantity } 
+                : m
+            );
+        } else {
+            const newMaterial: Material = {
+                id: `mat_${new Date().getTime()}`,
+                name: materialName,
+                stock: quantity,
+                unit: unit,
+            };
+            return [...prev, newMaterial];
+        }
+    });
+  };
 
   return (
-    <MaterialContext.Provider value={{ materials, addMaterial, updateMaterial, deleteMaterial }}>
+    <MaterialContext.Provider value={{ materials, addMaterial, updateMaterial, deleteMaterial, addStock }}>
       {children}
     </MaterialContext.Provider>
   );
