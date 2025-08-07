@@ -268,8 +268,8 @@ function MaterialStockTab() {
         <CardDescription>
           Kelola inventaris semua material mentah Anda. Filter berdasarkan produk untuk melihat material yang relevan.
         </CardDescription>
-        <div className="flex items-center justify-between pt-4">
-           <div className="w-full max-w-sm">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between pt-4 gap-4">
+           <div className="w-full sm:max-w-sm">
             <Select onValueChange={setFilterProductId} defaultValue="all">
               <SelectTrigger>
                 <SelectValue placeholder="Filter berdasarkan produk..." />
@@ -286,7 +286,7 @@ function MaterialStockTab() {
           </div>
           <Dialog open={isAddEditDialogOpen} onOpenChange={setAddEditDialogOpen}>
             <DialogTrigger asChild>
-              <Button size="sm" onClick={handleAddClick}>
+              <Button size="sm" onClick={handleAddClick} className="w-full sm:w-auto">
                 <PlusCircle className="mr-2 h-4 w-4" />
                 Tambah Material
               </Button>

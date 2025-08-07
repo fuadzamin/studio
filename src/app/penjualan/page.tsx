@@ -228,21 +228,21 @@ export default function PenjualanPage() {
           <CardDescription>
             Lihat dan kelola semua pesanan penjualan.
           </CardDescription>
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4">
-             <div className="flex-1 flex flex-col sm:flex-row items-center gap-2 w-full">
-                 <div className="relative w-full sm:max-w-xs">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pt-4">
+             <div className="flex flex-col md:flex-row items-center gap-2 w-full flex-1">
+                 <div className="relative w-full md:max-w-xs">
                   <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                   <Input
                     type="search"
                     placeholder="Cari pesanan, produk, pelanggan..."
-                    className="pl-8"
+                    className="pl-8 w-full"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                   />
                 </div>
-                 <div className="flex items-center gap-2 w-full sm:w-auto">
+                 <div className="flex items-center gap-2 w-full md:w-auto">
                     <Select onValueChange={handlePresetFilterChange}>
-                        <SelectTrigger className="w-full sm:w-[150px]">
+                        <SelectTrigger className="w-full md:w-[150px]">
                             <SelectValue placeholder="Filter Waktu" />
                         </SelectTrigger>
                         <SelectContent>
@@ -259,7 +259,7 @@ export default function PenjualanPage() {
                             id="date"
                             variant={"outline"}
                             className={cn(
-                            "w-full sm:w-[260px] justify-start text-left font-normal",
+                            "w-full md:w-[260px] justify-start text-left font-normal",
                             !dateRange && "text-muted-foreground"
                             )}
                         >
@@ -294,7 +294,7 @@ export default function PenjualanPage() {
             <div className="w-full sm:w-auto">
                 <Dialog open={isAddDialogOpen} onOpenChange={setAddDialogOpen}>
                     <DialogTrigger asChild>
-                        <Button size="sm" className="w-full">
+                        <Button size="sm" className="w-full sm:w-auto">
                             <PlusCircle className="mr-2 h-4 w-4" />
                             Buat Pesanan Baru
                         </Button>
@@ -305,22 +305,22 @@ export default function PenjualanPage() {
                         </DialogHeader>
                         <form onSubmit={handleCreateOrder}>
                             <div className="grid gap-4 py-4">
-                                <div className="grid grid-cols-4 items-center gap-4">
-                                    <Label htmlFor="so_id" className="text-right">Nomor SO</Label>
-                                    <Input id="so_id" value={`SO-${String(salesOrders.length + 1).padStart(3, '0')}`} className="col-span-3" disabled />
+                                <div className="grid grid-cols-1 sm:grid-cols-4 items-center gap-4">
+                                    <Label htmlFor="so_id" className="sm:text-right">Nomor SO</Label>
+                                    <Input id="so_id" value={`SO-${String(salesOrders.length + 1).padStart(3, '0')}`} className="sm:col-span-3" disabled />
                                 </div>
-                                <div className="grid grid-cols-4 items-center gap-4">
-                                    <Label htmlFor="date" className="text-right">Tanggal</Label>
-                                    <Input id="date" type="date" defaultValue={new Date().toISOString().split('T')[0]} className="col-span-3" />
+                                <div className="grid grid-cols-1 sm:grid-cols-4 items-center gap-4">
+                                    <Label htmlFor="date" className="sm:text-right">Tanggal</Label>
+                                    <Input id="date" type="date" defaultValue={new Date().toISOString().split('T')[0]} className="sm:col-span-3" />
                                 </div>
-                                <div className="grid grid-cols-4 items-center gap-4">
-                                    <Label htmlFor="customer" className="text-right">Pelanggan</Label>
-                                    <Input id="customer" name="customer" placeholder="Nama pelanggan" className="col-span-3" required/>
+                                <div className="grid grid-cols-1 sm:grid-cols-4 items-center gap-4">
+                                    <Label htmlFor="customer" className="sm:text-right">Pelanggan</Label>
+                                    <Input id="customer" name="customer" placeholder="Nama pelanggan" className="sm:col-span-3" required/>
                                 </div>
-                                <div className="grid grid-cols-4 items-center gap-4">
-                                    <Label htmlFor="productName" className="text-right">Produk</Label>
+                                <div className="grid grid-cols-1 sm:grid-cols-4 items-center gap-4">
+                                    <Label htmlFor="productName" className="sm:text-right">Produk</Label>
                                     <Select name="productName">
-                                        <SelectTrigger className="col-span-3">
+                                        <SelectTrigger className="sm:col-span-3">
                                             <SelectValue placeholder="Pilih produk" />
                                         </SelectTrigger>
                                         <SelectContent>
@@ -330,13 +330,13 @@ export default function PenjualanPage() {
                                         </SelectContent>
                                     </Select>
                                 </div>
-                                <div className="grid grid-cols-4 items-center gap-4">
-                                    <Label htmlFor="quantity" className="text-right">Jumlah</Label>
-                                    <Input id="quantity" name="quantity" type="number" placeholder="0" className="col-span-3" required/>
+                                <div className="grid grid-cols-1 sm:grid-cols-4 items-center gap-4">
+                                    <Label htmlFor="quantity" className="sm:text-right">Jumlah</Label>
+                                    <Input id="quantity" name="quantity" type="number" placeholder="0" className="sm:col-span-3" required/>
                                 </div>
-                                <div className="grid grid-cols-4 items-center gap-4">
-                                    <Label htmlFor="total" className="text-right">Total Harga</Label>
-                                    <Input id="total" name="total" type="number" placeholder="Rp 0" className="col-span-3" required/>
+                                <div className="grid grid-cols-1 sm:grid-cols-4 items-center gap-4">
+                                    <Label htmlFor="total" className="sm:text-right">Total Harga</Label>
+                                    <Input id="total" name="total" type="number" placeholder="Rp 0" className="sm:col-span-3" required/>
                                 </div>
                             </div>
                             <DialogFooter>

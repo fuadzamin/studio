@@ -223,20 +223,20 @@ function AttendanceTab() {
           <CardTitle>Riwayat Kehadiran</CardTitle>
           <CardDescription>Pilih tanggal untuk melihat atau mengubah absensi. Status dan keterangan dapat diubah langsung di tabel.</CardDescription>
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pt-4">
-             <div className="flex-1 flex flex-col sm:flex-row items-center gap-2 w-full">
-                <div className="relative w-full sm:max-w-xs">
+             <div className="flex flex-col md:flex-row items-center gap-2 w-full flex-1">
+                <div className="relative w-full md:max-w-xs">
                     <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                     <Input
                         type="search"
                         placeholder="Cari nama karyawan..."
-                        className="pl-8"
+                        className="pl-8 w-full"
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                     />
                 </div>
-                 <div className="flex items-center gap-2 w-full sm:w-auto">
+                 <div className="flex items-center gap-2 w-full md:w-auto">
                     <Select onValueChange={handlePresetFilterChange}>
-                        <SelectTrigger className="w-full sm:w-[150px]">
+                        <SelectTrigger className="w-full md:w-[150px]">
                             <SelectValue placeholder="Filter Waktu" />
                         </SelectTrigger>
                         <SelectContent>
@@ -253,7 +253,7 @@ function AttendanceTab() {
                             id="date"
                             variant={"outline"}
                             className={cn(
-                            "w-full sm:w-[260px] justify-start text-left font-normal",
+                            "w-full md:w-[260px] justify-start text-left font-normal",
                             !dateRange && "text-muted-foreground"
                             )}
                         >
@@ -288,7 +288,7 @@ function AttendanceTab() {
              <div className="w-full sm:w-auto">
                  <Dialog open={isAddDialogOpen} onOpenChange={setAddDialogOpen}>
                     <DialogTrigger asChild>
-                       <Button>
+                       <Button className="w-full sm:w-auto">
                            <PlusCircle className="mr-2 h-4 w-4"/> Input Absensi Baru
                        </Button>
                     </DialogTrigger>

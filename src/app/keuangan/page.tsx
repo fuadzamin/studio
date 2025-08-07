@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useMemo, useContext } from "react";
@@ -184,10 +185,10 @@ export default function KeuanganPage() {
                 <DialogTitle>Catat Transaksi Baru</DialogTitle>
               </DialogHeader>
               <div className="grid gap-4 py-4">
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="type" className="text-right">Jenis</Label>
+                <div className="grid grid-cols-1 sm:grid-cols-4 items-center gap-4">
+                  <Label htmlFor="type" className="sm:text-right">Jenis</Label>
                   <Select onValueChange={setTransactionType}>
-                    <SelectTrigger className="col-span-3">
+                    <SelectTrigger className="sm:col-span-3">
                       <SelectValue placeholder="Pilih jenis" />
                     </SelectTrigger>
                     <SelectContent>
@@ -197,10 +198,10 @@ export default function KeuanganPage() {
                   </Select>
                 </div>
                 {transactionType === 'expense' && (
-                    <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="category" className="text-right">Kategori</Label>
+                    <div className="grid grid-cols-1 sm:grid-cols-4 items-center gap-4">
+                        <Label htmlFor="category" className="sm:text-right">Kategori</Label>
                         <Select onValueChange={setTransactionCategory}>
-                            <SelectTrigger className="col-span-3">
+                            <SelectTrigger className="sm:col-span-3">
                             <SelectValue placeholder="Pilih kategori pengeluaran" />
                             </SelectTrigger>
                             <SelectContent>
@@ -213,10 +214,10 @@ export default function KeuanganPage() {
                     </div>
                 )}
                  {transactionType === 'income' && (
-                    <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="category" className="text-right">Kategori</Label>
+                    <div className="grid grid-cols-1 sm:grid-cols-4 items-center gap-4">
+                        <Label htmlFor="category" className="sm:text-right">Kategori</Label>
                          <Select onValueChange={setTransactionCategory}>
-                            <SelectTrigger className="col-span-3">
+                            <SelectTrigger className="sm:col-span-3">
                             <SelectValue placeholder="Pilih kategori pemasukan" />
                             </SelectTrigger>
                             <SelectContent>
@@ -230,13 +231,13 @@ export default function KeuanganPage() {
 
                 {transactionType === 'expense' && transactionCategory === 'Pembelian Bahan' ? (
                  <>
-                    <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="material" className="text-right">Material</Label>
+                    <div className="grid grid-cols-1 sm:grid-cols-4 items-center gap-4">
+                        <Label htmlFor="material" className="sm:text-right">Material</Label>
                         <Select onValueChange={(value) => {
                             const material = allBomMaterials.find(m => m.name === value);
                             setSelectedMaterial(material || null);
                         }}>
-                            <SelectTrigger className="col-span-3">
+                            <SelectTrigger className="sm:col-span-3">
                                 <SelectValue placeholder="Pilih material yang dibeli" />
                             </SelectTrigger>
                             <SelectContent>
@@ -248,9 +249,9 @@ export default function KeuanganPage() {
                             </SelectContent>
                         </Select>
                     </div>
-                    <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="quantity" className="text-right">Jumlah</Label>
-                        <div className="col-span-3 flex items-center gap-2">
+                    <div className="grid grid-cols-1 sm:grid-cols-4 items-center gap-4">
+                        <Label htmlFor="quantity" className="sm:text-right">Jumlah</Label>
+                        <div className="sm:col-span-3 flex items-center gap-2">
                            <Input id="quantity" type="number" className="flex-1" value={purchaseQuantity} onChange={(e) => setPurchaseQuantity(Number(e.target.value))} />
                            <span className="text-sm text-muted-foreground w-16">{selectedMaterial?.unit || 'Satuan'}</span>
                         </div>
@@ -258,13 +259,13 @@ export default function KeuanganPage() {
                  </>
                 ) : transactionType === 'income' && transactionCategory === 'Penjualan Produk' ? (
                   <>
-                    <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="product" className="text-right">Produk</Label>
+                    <div className="grid grid-cols-1 sm:grid-cols-4 items-center gap-4">
+                        <Label htmlFor="product" className="sm:text-right">Produk</Label>
                         <Select onValueChange={(value) => {
                             const product = products.find(p => p.id === value);
                             setSelectedProduct(product || null);
                         }}>
-                            <SelectTrigger className="col-span-3">
+                            <SelectTrigger className="sm:col-span-3">
                                 <SelectValue placeholder="Pilih produk yang dijual" />
                             </SelectTrigger>
                             <SelectContent>
@@ -276,9 +277,9 @@ export default function KeuanganPage() {
                             </SelectContent>
                         </Select>
                     </div>
-                    <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="sale_quantity" className="text-right">Jumlah</Label>
-                        <div className="col-span-3 flex items-center gap-2">
+                    <div className="grid grid-cols-1 sm:grid-cols-4 items-center gap-4">
+                        <Label htmlFor="sale_quantity" className="sm:text-right">Jumlah</Label>
+                        <div className="sm:col-span-3 flex items-center gap-2">
                            <Input id="sale_quantity" type="number" className="flex-1" value={saleQuantity} onChange={(e) => setSaleQuantity(Number(e.target.value))} />
                            <span className="text-sm text-muted-foreground w-16">{selectedProduct?.unit || 'Satuan'}</span>
                         </div>
@@ -286,19 +287,19 @@ export default function KeuanganPage() {
                   </>
                 ) : (
                     transactionType && transactionCategory && (
-                         <div className="grid grid-cols-4 items-start gap-4">
-                            <Label htmlFor="description" className="text-right pt-2">Keterangan</Label>
-                            <Textarea id="description" className="col-span-3" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Masukkan keterangan transaksi..."/>
+                         <div className="grid grid-cols-1 sm:grid-cols-4 items-start gap-4">
+                            <Label htmlFor="description" className="sm:text-right pt-2">Keterangan</Label>
+                            <Textarea id="description" className="sm:col-span-3" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Masukkan keterangan transaksi..."/>
                          </div>
                     )
                 )}
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="amount" className="text-right">Total Harga</Label>
-                  <Input id="amount" type="number" className="col-span-3" value={totalPrice} onChange={(e) => setTotalPrice(Number(e.target.value))}/>
+                <div className="grid grid-cols-1 sm:grid-cols-4 items-center gap-4">
+                  <Label htmlFor="amount" className="sm:text-right">Total Harga</Label>
+                  <Input id="amount" type="number" className="sm:col-span-3" value={totalPrice} onChange={(e) => setTotalPrice(Number(e.target.value))}/>
                 </div>
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="date" className="text-right">Tanggal</Label>
-                  <Input id="date" type="date" className="col-span-3" defaultValue={new Date().toISOString().split('T')[0]}/>
+                <div className="grid grid-cols-1 sm:grid-cols-4 items-center gap-4">
+                  <Label htmlFor="date" className="sm:text-right">Tanggal</Label>
+                  <Input id="date" type="date" className="sm:col-span-3" defaultValue={new Date().toISOString().split('T')[0]}/>
                 </div>
               </div>
               <DialogFooter>
