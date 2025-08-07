@@ -2,6 +2,9 @@
 "use client";
 
 import { useState } from "react";
+import { useForm, useFieldArray, Controller } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
 import {
   MoreHorizontal,
   PlusCircle,
@@ -65,22 +68,29 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Separator } from "@/components/ui/separator";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { useToast } from "@/hooks/use-toast";
 
-type BomItem = {
-  materialName: string;
-  quantity: number;
-  unit: string;
-};
 
-type Product = {
-  id: string;
-  name: string;
-  code: string;
-  purchasePrice: number;
-  salePrice: number;
-  unit: string;
-  bom: BomItem[];
-};
+const bomItemSchema = z.object({
+  materialName: z.string().min(1, "Nama material tidak boleh kosong"),
+  quantity: z.coerce.number().min(1, "Jumlah harus lebih dari 0"),
+  unit: z.string().min(1, "Satuan harus dipilih"),
+});
+
+const productSchema = z.object({
+  id: z.string().optional(),
+  name: z.string().min(1, "Nama produk tidak boleh kosong"),
+  code: z.string().min(1, "Kode produk tidak boleh kosong"),
+  purchasePrice: z.coerce.number().positive("Harga pokok harus positif"),
+  salePrice: z.coerce.number().positive("Harga jual harus positif"),
+  unit: z.string().min(1, "Satuan harus dipilih"),
+  bom: z.array(bomItemSchema),
+});
+
+type ProductFormValues = z.infer<typeof productSchema>;
+type Product = ProductFormValues & { id: string };
+
 
 const initialProducts: Product[] = [
   {
@@ -143,11 +153,27 @@ export default function BarangPage() {
   const [products, setProducts] = useState(initialProducts);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
-  const [bomItems, setBomItems] = useState<BomItem[]>([]);
 
-  const [isAddDialogOpen, setAddDialogOpen] = useState(false);
-  const [isEditDialogOpen, setEditDialogOpen] = useState(false);
+  const [isAddEditDialogOpen, setAddEditDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const { toast } = useToast();
+
+  const form = useForm<ProductFormValues>({
+    resolver: zodResolver(productSchema),
+    defaultValues: {
+      name: "",
+      code: "",
+      purchasePrice: 0,
+      salePrice: 0,
+      unit: "",
+      bom: [],
+    },
+  });
+
+  const { fields, append, remove } = useFieldArray({
+    control: form.control,
+    name: "bom",
+  });
 
   const filteredProducts = products.filter(
     (product) =>
@@ -157,8 +183,21 @@ export default function BarangPage() {
 
   const handleEditClick = (product: Product) => {
     setSelectedProduct(product);
-    setBomItems(product.bom);
-    setEditDialogOpen(true);
+    form.reset(product);
+    setAddEditDialogOpen(true);
+  };
+
+  const handleAddClick = () => {
+    setSelectedProduct(null);
+    form.reset({
+      name: "",
+      code: "",
+      purchasePrice: 0,
+      salePrice: 0,
+      unit: "",
+      bom: [],
+    });
+    setAddEditDialogOpen(true);
   };
 
   const handleDeleteClick = (product: Product) => {
@@ -166,26 +205,45 @@ export default function BarangPage() {
     setDeleteDialogOpen(true);
   };
 
-  const handleAddBomItem = () => {
-    setBomItems([...bomItems, { materialName: "", quantity: 1, unit: "pcs" }]);
+  const handleDeleteConfirm = () => {
+    if (selectedProduct) {
+        setProducts(products.filter(p => p.id !== selectedProduct.id));
+        toast({
+            title: "Sukses",
+            description: `Produk "${selectedProduct.name}" berhasil dihapus.`,
+        });
+        setDeleteDialogOpen(false);
+        setSelectedProduct(null);
+    }
   };
 
-  const handleRemoveBomItem = (index: number) => {
-    const newBomItems = bomItems.filter((_, i) => i !== index);
-    setBomItems(newBomItems);
-  };
 
-  const handleBomItemChange = (index: number, field: keyof BomItem, value: string | number) => {
-    const newBomItems = [...bomItems];
-    (newBomItems[index] as any)[field] = value;
-    setBomItems(newBomItems);
-  };
-  
-  const openAddDialog = () => {
+  const onSubmit = (data: ProductFormValues) => {
+    const isEditing = !!selectedProduct;
+     if (!isEditing && products.some(p => p.code === data.code)) {
+        form.setError("code", { type: "manual", message: "Kode produk sudah ada." });
+        return;
+    }
+    
+    if (isEditing && selectedProduct) {
+      // Edit
+      setProducts(products.map(p => p.id === selectedProduct.id ? { ...data, id: p.id } : p));
+      toast({
+        title: "Sukses",
+        description: "Produk berhasil diperbarui.",
+      });
+    } else {
+      // Add
+      const newProduct: Product = { ...data, id: (products.length + 1).toString() };
+      setProducts([...products, newProduct]);
+       toast({
+        title: "Sukses",
+        description: "Produk baru berhasil ditambahkan.",
+      });
+    }
+    setAddEditDialogOpen(false);
     setSelectedProduct(null);
-    setBomItems([]);
-    setAddDialogOpen(true);
-  }
+  };
 
   return (
     <div className="space-y-8">
@@ -217,104 +275,10 @@ export default function BarangPage() {
                 <File className="mr-2 h-4 w-4" />
                 Export
               </Button>
-              <Dialog open={isAddDialogOpen} onOpenChange={setAddDialogOpen}>
-                <DialogTrigger asChild>
-                  <Button size="sm" onClick={openAddDialog}>
-                    <PlusCircle className="mr-2 h-4 w-4" />
-                    Tambah Produk
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="sm:max-w-xl">
-                  <DialogHeader>
-                    <DialogTitle>Tambah Produk Baru</DialogTitle>
-                    <DialogDescription>
-                      Isi detail produk baru dan komponen Bill of Materials (BOM) di bawah ini.
-                    </DialogDescription>
-                  </DialogHeader>
-                  <div className="grid gap-4 py-4 max-h-[70vh] overflow-y-auto pr-6">
-                     <div className="space-y-4">
-                        <div className="grid grid-cols-4 items-center gap-4">
-                          <Label htmlFor="product_name" className="text-right">Nama</Label>
-                          <Input id="product_name" className="col-span-3" />
-                        </div>
-                         <div className="grid grid-cols-4 items-center gap-4">
-                          <Label htmlFor="product_code" className="text-right">Kode</Label>
-                          <Input id="product_code" className="col-span-3" />
-                        </div>
-                         <div className="grid grid-cols-4 items-center gap-4">
-                          <Label htmlFor="purchase_price" className="text-right">Harga Pokok</Label>
-                          <Input id="purchase_price" type="number" className="col-span-3" />
-                        </div>
-                         <div className="grid grid-cols-4 items-center gap-4">
-                          <Label htmlFor="sale_price" className="text-right">Harga Jual</Label>
-                          <Input id="sale_price" type="number" className="col-span-3" />
-                        </div>
-                         <div className="grid grid-cols-4 items-center gap-4">
-                          <Label htmlFor="unit" className="text-right">Satuan</Label>
-                           <Select>
-                            <SelectTrigger className="col-span-3">
-                              <SelectValue placeholder="Pilih satuan" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="pcs">Pcs</SelectItem>
-                              <SelectItem value="roll">Roll</SelectItem>
-                              <SelectItem value="meter">Meter</SelectItem>
-                               <SelectItem value="set">Set</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                     </div>
-                     <Separator className="my-4" />
-                     <div>
-                        <div className="flex justify-between items-center mb-4">
-                             <h4 className="font-medium">Bill of Materials (BOM)</h4>
-                            <Button variant="outline" size="sm" onClick={handleAddBomItem}><PlusCircle className="mr-2 h-4 w-4"/> Tambah Material</Button>
-                        </div>
-                        <div className="space-y-4">
-                          {bomItems.map((item, index) => (
-                            <div key={index} className="grid grid-cols-12 items-center gap-2">
-                                <Input 
-                                    placeholder="Nama Material" 
-                                    className="col-span-5" 
-                                    value={item.materialName} 
-                                    onChange={(e) => handleBomItemChange(index, 'materialName', e.target.value)}
-                                />
-                                <Input 
-                                    type="number" 
-                                    placeholder="Jumlah" 
-                                    className="col-span-3" 
-                                    value={item.quantity}
-                                    onChange={(e) => handleBomItemChange(index, 'quantity', parseInt(e.target.value))}
-                                />
-                                <Select 
-                                    value={item.unit}
-                                    onValueChange={(value) => handleBomItemChange(index, 'unit', value)}
-                                >
-                                    <SelectTrigger className="col-span-3">
-                                    <SelectValue placeholder="Satuan" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                    <SelectItem value="pcs">Pcs</SelectItem>
-                                    <SelectItem value="roll">Roll</SelectItem>
-                                    <SelectItem value="meter">Meter</SelectItem>
-                                    <SelectItem value="cm">Cm</SelectItem>
-                                    <SelectItem value="liter">Liter</SelectItem>
-                                    <SelectItem value="gram">Gram</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                                <Button variant="ghost" size="icon" className="col-span-1" onClick={() => handleRemoveBomItem(index)}>
-                                    <MinusCircle className="h-4 w-4 text-destructive"/>
-                                </Button>
-                            </div>
-                          ))}
-                        </div>
-                     </div>
-                  </div>
-                  <DialogFooter>
-                    <Button type="submit">Simpan</Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
+               <Button size="sm" onClick={handleAddClick}>
+                  <PlusCircle className="mr-2 h-4 w-4" />
+                  Tambah Produk
+                </Button>
             </div>
           </div>
         </CardHeader>
@@ -347,8 +311,7 @@ export default function BarangPage() {
                     {product.unit}
                   </TableCell>
                   <TableCell>
-                     <Dialog open={isEditDialogOpen && selectedProduct?.id === product.id} onOpenChange={setEditDialogOpen}>
-                       <AlertDialog open={isDeleteDialogOpen && selectedProduct?.id === product.id} onOpenChange={setDeleteDialogOpen}>
+                      <AlertDialog open={isDeleteDialogOpen && selectedProduct?.id === product.id} onOpenChange={setDeleteDialogOpen}>
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <Button aria-haspopup="true" size="icon" variant="ghost">
@@ -358,11 +321,9 @@ export default function BarangPage() {
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
                             <DropdownMenuLabel>Aksi</DropdownMenuLabel>
-                             <DialogTrigger asChild>
                                 <DropdownMenuItem onSelect={() => handleEditClick(product)}>
                                     <Edit className="mr-2 h-4 w-4" /> Edit
                                 </DropdownMenuItem>
-                             </DialogTrigger>
                              <AlertDialogTrigger asChild>
                                 <DropdownMenuItem onSelect={(e) => { e.preventDefault(); handleDeleteClick(product); }} className="text-destructive">
                                     <Trash2 className="mr-2 h-4 w-4" /> Hapus
@@ -380,113 +341,173 @@ export default function BarangPage() {
                             </AlertDialogHeader>
                             <AlertDialogFooter>
                               <AlertDialogCancel>Batal</AlertDialogCancel>
-                              <AlertDialogAction className="bg-destructive hover:bg-destructive/90">
+                              <AlertDialogAction onClick={handleDeleteConfirm} className="bg-destructive hover:bg-destructive/90">
                                 Ya, Hapus
                               </AlertDialogAction>
                             </AlertDialogFooter>
                          </AlertDialogContent>
                        </AlertDialog>
-                       <DialogContent className="sm:max-w-xl">
-                         <DialogHeader>
-                           <DialogTitle>Edit Produk</DialogTitle>
-                           <DialogDescription>
-                             Ubah detail produk dan komponen Bill of Materials (BOM) di bawah ini.
-                           </DialogDescription>
-                         </DialogHeader>
-                          <div className="grid gap-4 py-4 max-h-[70vh] overflow-y-auto pr-6">
-                            <div className="space-y-4">
-                               <div className="grid grid-cols-4 items-center gap-4">
-                                <Label htmlFor="product_name_edit" className="text-right">Nama</Label>
-                                <Input id="product_name_edit" defaultValue={selectedProduct?.name} className="col-span-3" />
-                              </div>
-                               <div className="grid grid-cols-4 items-center gap-4">
-                                <Label htmlFor="product_code_edit" className="text-right">Kode</Label>
-                                <Input id="product_code_edit" defaultValue={selectedProduct?.code} className="col-span-3" />
-                              </div>
-                               <div className="grid grid-cols-4 items-center gap-4">
-                                <Label htmlFor="purchase_price_edit" className="text-right">Harga Pokok</Label>
-                                <Input id="purchase_price_edit" type="number" defaultValue={selectedProduct?.purchasePrice} className="col-span-3" />
-                              </div>
-                               <div className="grid grid-cols-4 items-center gap-4">
-                                <Label htmlFor="sale_price_edit" className="text-right">Harga Jual</Label>
-                                <Input id="sale_price_edit" type="number" defaultValue={selectedProduct?.salePrice} className="col-span-3" />
-                              </div>
-                               <div className="grid grid-cols-4 items-center gap-4">
-                                <Label htmlFor="unit_edit" className="text-right">Satuan</Label>
-                                 <Select defaultValue={selectedProduct?.unit}>
-                                  <SelectTrigger className="col-span-3">
-                                    <SelectValue placeholder="Pilih satuan" />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value="pcs">Pcs</SelectItem>
-                                    <SelectItem value="roll">Roll</SelectItem>
-                                    <SelectItem value="meter">Meter</SelectItem>
-                                     <SelectItem value="set">Set</SelectItem>
-                                  </SelectContent>
-                                </Select>
-                              </div>
-                            </div>
-                            <Separator className="my-4" />
-                            <div>
-                               <div className="flex justify-between items-center mb-4">
-                                    <h4 className="font-medium">Bill of Materials (BOM)</h4>
-                                   <Button variant="outline" size="sm" onClick={handleAddBomItem}><PlusCircle className="mr-2 h-4 w-4"/> Tambah Material</Button>
-                               </div>
-                               <div className="space-y-4">
-                                 {bomItems.map((item, index) => (
-                                   <div key={index} className="grid grid-cols-12 items-center gap-2">
-                                       <Input 
-                                           placeholder="Nama Material" 
-                                           className="col-span-5" 
-                                           value={item.materialName} 
-                                           onChange={(e) => handleBomItemChange(index, 'materialName', e.target.value)}
-                                       />
-                                       <Input 
-                                           type="number" 
-                                           placeholder="Jumlah" 
-                                           className="col-span-3" 
-                                           value={item.quantity}
-                                           onChange={(e) => handleBomItemChange(index, 'quantity', parseInt(e.target.value))}
-                                       />
-                                       <Select 
-                                           value={item.unit}
-                                           onValueChange={(value) => handleBomItemChange(index, 'unit', value)}
-                                       >
-                                           <SelectTrigger className="col-span-3">
-                                           <SelectValue placeholder="Satuan" />
-                                           </SelectTrigger>
-                                           <SelectContent>
-                                           <SelectItem value="pcs">Pcs</SelectItem>
-                                           <SelectItem value="roll">Roll</SelectItem>
-                                           <SelectItem value="meter">Meter</SelectItem>
-                                           <SelectItem value="cm">Cm</SelectItem>
-                                           <SelectItem value="liter">Liter</SelectItem>
-                                           <SelectItem value="gram">Gram</SelectItem>
-                                           </SelectContent>
-                                       </Select>
-                                       <Button variant="ghost" size="icon" className="col-span-1" onClick={() => handleRemoveBomItem(index)}>
-                                           <MinusCircle className="h-4 w-4 text-destructive"/>
-                                       </Button>
-                                   </div>
-                                 ))}
-                               </div>
-                            </div>
-                         </div>
-                         <DialogFooter>
-                           <Button type="submit">Simpan Perubahan</Button>
-                         </DialogFooter>
-                       </DialogContent>
-                     </Dialog>
                   </TableCell>
                 </TableRow>
               ))}
             </TableBody>
           </Table>
+           <Dialog open={isAddEditDialogOpen} onOpenChange={setAddEditDialogOpen}>
+            <DialogContent className="sm:max-w-xl">
+                 <Form {...form}>
+                    <form onSubmit={form.handleSubmit(onSubmit)}>
+                        <DialogHeader>
+                        <DialogTitle>{selectedProduct ? 'Edit Produk' : 'Tambah Produk Baru'}</DialogTitle>
+                        <DialogDescription>
+                            {selectedProduct ? 'Ubah detail produk dan komponen Bill of Materials (BOM) di bawah ini.' : 'Isi detail produk baru dan komponen Bill of Materials (BOM) di bawah ini.'}
+                        </DialogDescription>
+                        </DialogHeader>
+                        <div className="grid gap-4 py-4 max-h-[70vh] overflow-y-auto pr-6">
+                            <div className="space-y-4">
+                                <FormField
+                                control={form.control}
+                                name="name"
+                                render={({ field }) => (
+                                    <FormItem className="grid grid-cols-4 items-center gap-4">
+                                    <FormLabel className="text-right">Nama</FormLabel>
+                                    <FormControl>
+                                        <Input className="col-span-3" {...field} />
+                                    </FormControl>
+                                    <FormMessage className="col-span-4 text-right" />
+                                    </FormItem>
+                                )}
+                                />
+                                <FormField
+                                control={form.control}
+                                name="code"
+                                render={({ field }) => (
+                                    <FormItem className="grid grid-cols-4 items-center gap-4">
+                                    <FormLabel className="text-right">Kode</FormLabel>
+                                    <FormControl>
+                                        <Input className="col-span-3" {...field} disabled={!!selectedProduct} />
+                                    </FormControl>
+                                    <FormMessage className="col-span-4 text-right" />
+                                    </FormItem>
+                                )}
+                                />
+                                <FormField
+                                control={form.control}
+                                name="purchasePrice"
+                                render={({ field }) => (
+                                    <FormItem className="grid grid-cols-4 items-center gap-4">
+                                    <FormLabel className="text-right">Harga Pokok</FormLabel>
+                                    <FormControl>
+                                        <Input type="number" className="col-span-3" {...field} />
+                                    </FormControl>
+                                    <FormMessage className="col-span-4 text-right" />
+                                    </FormItem>
+                                )}
+                                />
+                                <FormField
+                                control={form.control}
+                                name="salePrice"
+                                render={({ field }) => (
+                                    <FormItem className="grid grid-cols-4 items-center gap-4">
+                                    <FormLabel className="text-right">Harga Jual</FormLabel>
+                                    <FormControl>
+                                        <Input type="number" className="col-span-3" {...field} />
+                                    </FormControl>
+                                    <FormMessage className="col-span-4 text-right" />
+                                    </FormItem>
+                                )}
+                                />
+                                <FormField
+                                control={form.control}
+                                name="unit"
+                                render={({ field }) => (
+                                    <FormItem className="grid grid-cols-4 items-center gap-4">
+                                        <FormLabel className="text-right">Satuan</FormLabel>
+                                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                            <FormControl>
+                                            <SelectTrigger className="col-span-3">
+                                                <SelectValue placeholder="Pilih satuan" />
+                                            </SelectTrigger>
+                                            </FormControl>
+                                            <SelectContent>
+                                            <SelectItem value="pcs">Pcs</SelectItem>
+                                            <SelectItem value="roll">Roll</SelectItem>
+                                            <SelectItem value="meter">Meter</SelectItem>
+                                            <SelectItem value="set">Set</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                        <FormMessage className="col-span-4 text-right" />
+                                    </FormItem>
+                                )}
+                                />
+                            </div>
+                            <Separator className="my-4" />
+                            <div>
+                                <div className="flex justify-between items-center mb-4">
+                                    <h4 className="font-medium">Bill of Materials (BOM)</h4>
+                                    <Button type="button" variant="outline" size="sm" onClick={() => append({ materialName: '', quantity: 1, unit: 'pcs' })}><PlusCircle className="mr-2 h-4 w-4"/> Tambah Material</Button>
+                                </div>
+                                <div className="space-y-4">
+                                {fields.map((item, index) => (
+                                    <div key={item.id} className="grid grid-cols-12 items-start gap-2">
+                                        <FormField
+                                            control={form.control}
+                                            name={`bom.${index}.materialName`}
+                                            render={({ field }) => (
+                                                <FormItem className="col-span-5">
+                                                    <FormControl><Input placeholder="Nama Material" {...field} /></FormControl>
+                                                    <FormMessage />
+                                                </FormItem>
+                                            )}
+                                        />
+                                        <FormField
+                                            control={form.control}
+                                            name={`bom.${index}.quantity`}
+                                            render={({ field }) => (
+                                                <FormItem className="col-span-3">
+                                                    <FormControl><Input type="number" placeholder="Jumlah" {...field} /></FormControl>
+                                                     <FormMessage />
+                                                </FormItem>
+                                            )}
+                                        />
+                                        <FormField
+                                            control={form.control}
+                                            name={`bom.${index}.unit`}
+                                            render={({ field }) => (
+                                            <FormItem className="col-span-3">
+                                                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                                    <FormControl>
+                                                        <SelectTrigger><SelectValue placeholder="Satuan" /></SelectTrigger>
+                                                    </FormControl>
+                                                    <SelectContent>
+                                                        <SelectItem value="pcs">Pcs</SelectItem>
+                                                        <SelectItem value="roll">Roll</SelectItem>
+                                                        <SelectItem value="meter">Meter</SelectItem>
+                                                        <SelectItem value="cm">Cm</SelectItem>
+                                                        <SelectItem value="liter">Liter</SelectItem>
+                                                        <SelectItem value="gram">Gram</SelectItem>
+                                                    </SelectContent>
+                                                </Select>
+                                                <FormMessage />
+                                            </FormItem>
+                                            )}
+                                        />
+                                        <Button type="button" variant="ghost" size="icon" className="col-span-1 mt-1" onClick={() => remove(index)}>
+                                            <MinusCircle className="h-4 w-4 text-destructive"/>
+                                        </Button>
+                                    </div>
+                                ))}
+                                </div>
+                            </div>
+                        </div>
+                        <DialogFooter>
+                            <Button type="submit">Simpan</Button>
+                        </DialogFooter>
+                    </form>
+                </Form>
+            </DialogContent>
+           </Dialog>
         </CardContent>
       </Card>
     </div>
   );
 }
-
-    
-    
