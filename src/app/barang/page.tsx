@@ -211,6 +211,7 @@ export default function BarangPage() {
         toast({
             title: "Sukses",
             description: `Produk "${selectedProduct.name}" berhasil dihapus.`,
+            variant: "default",
         });
         setDeleteDialogOpen(false);
         setSelectedProduct(null);
@@ -442,11 +443,14 @@ export default function BarangPage() {
                             </div>
                             <Separator className="my-4" />
                             <div>
-                                <div className="flex justify-between items-center mb-4">
-                                    <h4 className="font-medium">Bill of Materials (BOM)</h4>
+                                <div className="flex justify-between items-center mb-2">
+                                    <div>
+                                        <h4 className="font-medium">Bill of Materials (BOM)</h4>
+                                        <p className="text-sm text-muted-foreground">Daftar kebutuhan material untuk membuat 1 unit produk.</p>
+                                    </div>
                                     <Button type="button" variant="outline" size="sm" onClick={() => append({ materialName: '', quantity: 1, unit: 'pcs' })}><PlusCircle className="mr-2 h-4 w-4"/> Tambah Material</Button>
                                 </div>
-                                <div className="space-y-4">
+                                <div className="space-y-4 pt-2">
                                 {fields.map((item, index) => (
                                     <div key={item.id} className="grid grid-cols-12 items-start gap-2">
                                         <FormField
