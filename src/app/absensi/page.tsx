@@ -1,8 +1,8 @@
 
 "use client"
 
-import { useState } from "react"
-import { Calendar as CalendarIcon, UserCheck, UserX, Clock } from "lucide-react"
+import { useState, useMemo } from "react"
+import { Calendar as CalendarIcon, UserCheck, UserX, Clock, Search } from "lucide-react"
 import { format } from "date-fns"
 import { id as indonesiaLocale } from "date-fns/locale"
 
@@ -52,6 +52,7 @@ type AttendanceRecord = typeof initialAttendanceData[0];
 export default function AbsensiPage() {
   const [date, setDate] = useState<Date | undefined>(new Date())
   const [attendance, setAttendance] = useState<AttendanceRecord[]>(initialAttendanceData);
+  const [searchTerm, setSearchTerm] = useState("");
 
   const handleStatusChange = (id: string, newStatus: string) => {
     setAttendance(prev => 
@@ -69,6 +70,12 @@ export default function AbsensiPage() {
     );
   };
 
+  const filteredAttendance = useMemo(() => {
+    return attendance.filter(record => 
+      record.name.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  }, [attendance, searchTerm]);
+
 
   return (
     <div className="space-y-8">
@@ -83,13 +90,23 @@ export default function AbsensiPage() {
          <CardHeader>
           <CardTitle>Catatan Kehadiran</CardTitle>
           <CardDescription>Pilih tanggal untuk melihat atau mencatat absensi. Status dan keterangan dapat diubah langsung di tabel.</CardDescription>
-          <div className="pt-4">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4">
+             <div className="relative w-full sm:max-w-xs">
+                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                    type="search"
+                    placeholder="Cari nama karyawan..."
+                    className="pl-8"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                />
+            </div>
              <Popover>
                 <PopoverTrigger asChild>
                 <Button
                     variant={"outline"}
                     className={cn(
-                    "w-[280px] justify-start text-left font-normal",
+                    "w-full sm:w-[280px] justify-start text-left font-normal",
                     !date && "text-muted-foreground"
                     )}
                 >
@@ -119,7 +136,7 @@ export default function AbsensiPage() {
                     </TableRow>
                 </TableHeader>
                 <TableBody>
-                    {attendance.map((employee) => (
+                    {filteredAttendance.map((employee) => (
                         <TableRow key={employee.id}>
                             <TableCell className="font-medium">{employee.name}</TableCell>
                              <TableCell>{format(new Date(employee.date), "dd MMM yyyy", { locale: indonesiaLocale })}</TableCell>
