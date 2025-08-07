@@ -69,13 +69,13 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
 
 
 const initialAttendanceData = [
-    { id: "att-1", employeeId: "emp-1", name: "Budi Santoso", date: subDays(new Date(), 1).toISOString().split('T')[0], status: "Hadir", notes: "" },
-    { id: "att-2", employeeId: "emp-2", name: "Citra Lestari", date: subDays(new Date(), 1).toISOString().split('T')[0], status: "Hadir", notes: "" },
-    { id: "att-3", employeeId: "emp-3", name: "Doni Firmansyah", date: subDays(new Date(), 1).toISOString().split('T')[0], status: "Tidak Hadir", notes: "" },
-    { id: "att-4", employeeId: "emp-4", name: "Eka Putri", date: subDays(new Date(), 1).toISOString().split('T')[0], status: "Telat", notes: "Bocor ban di jalan" },
-    { id: "att-5", employeeId: "emp-1", name: "Budi Santoso", date: subDays(new Date(), 2).toISOString().split('T')[0], status: "Hadir", notes: "" },
-    { id: "att-6", employeeId: "emp-2", name: "Citra Lestari", date: subDays(new Date(), 8).toISOString().split('T')[0], status: "Hadir", notes: "" },
-    { id: "att-7", employeeId: "emp-3", name: "Doni Firmansyah", date: subDays(new Date(), 35).toISOString().split('T')[0], status: "Hadir", notes: "" },
+    { id: "att-1", employeeId: "emp-1", name: "Budi Santoso", date: "2024-07-28", status: "Hadir", notes: "" },
+    { id: "att-2", employeeId: "emp-2", name: "Citra Lestari", date: "2024-07-28", status: "Hadir", notes: "" },
+    { id: "att-3", employeeId: "emp-3", name: "Doni Firmansyah", date: "2024-07-28", status: "Tidak Hadir", notes: "" },
+    { id: "att-4", employeeId: "emp-4", name: "Eka Putri", date: "2024-07-28", status: "Telat", notes: "Bocor ban di jalan" },
+    { id: "att-5", employeeId: "emp-1", name: "Budi Santoso", date: "2024-07-27", status: "Hadir", notes: "" },
+    { id: "att-6", employeeId: "emp-2", name: "Citra Lestari", date: "2024-07-21", status: "Hadir", notes: "" },
+    { id: "att-7", employeeId: "emp-3", name: "Doni Firmansyah", date: "2024-06-24", status: "Hadir", notes: "" },
 ]
 
 type AttendanceRecord = {
@@ -103,8 +103,12 @@ function AttendanceTab() {
   const { toast } = useToast();
   
   const [isAddDialogOpen, setAddDialogOpen] = useState(false);
-  const [newAttendanceDate, setNewAttendanceDate] = useState<string>(new Date().toISOString().split('T')[0]);
+  const [newAttendanceDate, setNewAttendanceDate] = useState<string>('');
   const [newAttendanceInputs, setNewAttendanceInputs] = useState<NewAttendanceInput[]>([]);
+
+  useEffect(() => {
+    setNewAttendanceDate(new Date().toISOString().split('T')[0]);
+  }, []);
 
   useEffect(() => {
     if (isAddDialogOpen) {
