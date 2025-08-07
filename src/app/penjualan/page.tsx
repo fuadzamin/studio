@@ -172,16 +172,20 @@ export default function PenjualanPage() {
   const formatCurrency = (amount: number) => new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", minimumFractionDigits: 0 }).format(amount);
 
   const filteredOrders = useMemo(() => {
-    let filtered = salesOrders.filter(
-      (order) =>
-        order.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        order.customer.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    let filtered = salesOrders.filter((order) => {
+        const searchTermLower = searchTerm.toLowerCase();
+        return (
+            order.id.toLowerCase().includes(searchTermLower) ||
+            order.customer.toLowerCase().includes(searchTermLower) ||
+            order.productName.toLowerCase().includes(searchTermLower)
+        );
+    });
 
-    if (dateRange?.from && dateRange?.to) {
+    if (dateRange?.from) {
+        const toDate = dateRange.to ? endOfDay(dateRange.to) : endOfDay(dateRange.from);
         filtered = filtered.filter((order) => {
-            const orderDate = startOfDay(parseISO(order.date));
-            return isWithinInterval(orderDate, { start: startOfDay(dateRange.from!), end: endOfDay(dateRange.to!) });
+            const orderDate = parseISO(order.date);
+            return isWithinInterval(orderDate, { start: startOfDay(dateRange.from!), end: toDate });
         });
     }
     
@@ -225,18 +229,18 @@ export default function PenjualanPage() {
             Lihat dan kelola semua pesanan penjualan.
           </CardDescription>
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4">
-             <div className="flex-1 flex flex-col sm:flex-row gap-2 w-full">
-                 <div className="relative w-full max-w-sm">
+             <div className="flex-1 flex flex-col sm:flex-row items-center gap-2 w-full">
+                 <div className="relative w-full sm:max-w-xs">
                   <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                   <Input
                     type="search"
-                    placeholder="Cari pesanan..."
+                    placeholder="Cari pesanan, produk, pelanggan..."
                     className="pl-8"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                   />
                 </div>
-                 <div className="flex gap-2">
+                 <div className="flex items-center gap-2 w-full sm:w-auto">
                     <Select onValueChange={handlePresetFilterChange}>
                         <SelectTrigger className="w-full sm:w-[150px]">
                             <SelectValue placeholder="Filter Waktu" />
@@ -287,59 +291,61 @@ export default function PenjualanPage() {
                     </Popover>
                 </div>
             </div>
-             <Dialog open={isAddDialogOpen} onOpenChange={setAddDialogOpen}>
-                <DialogTrigger asChild>
-                    <Button size="sm" className="w-full sm:w-auto">
-                        <PlusCircle className="mr-2 h-4 w-4" />
-                        Buat Pesanan Baru
-                    </Button>
-                </DialogTrigger>
-                <DialogContent className="sm:max-w-lg">
-                    <DialogHeader>
-                        <DialogTitle>Buat Pesanan Penjualan Baru</DialogTitle>
-                    </DialogHeader>
-                    <form onSubmit={handleCreateOrder}>
-                        <div className="grid gap-4 py-4">
-                            <div className="grid grid-cols-4 items-center gap-4">
-                                <Label htmlFor="so_id" className="text-right">Nomor SO</Label>
-                                <Input id="so_id" value={`SO-${String(salesOrders.length + 1).padStart(3, '0')}`} className="col-span-3" disabled />
+            <div className="w-full sm:w-auto">
+                <Dialog open={isAddDialogOpen} onOpenChange={setAddDialogOpen}>
+                    <DialogTrigger asChild>
+                        <Button size="sm" className="w-full">
+                            <PlusCircle className="mr-2 h-4 w-4" />
+                            Buat Pesanan Baru
+                        </Button>
+                    </DialogTrigger>
+                    <DialogContent className="sm:max-w-lg">
+                        <DialogHeader>
+                            <DialogTitle>Buat Pesanan Penjualan Baru</DialogTitle>
+                        </DialogHeader>
+                        <form onSubmit={handleCreateOrder}>
+                            <div className="grid gap-4 py-4">
+                                <div className="grid grid-cols-4 items-center gap-4">
+                                    <Label htmlFor="so_id" className="text-right">Nomor SO</Label>
+                                    <Input id="so_id" value={`SO-${String(salesOrders.length + 1).padStart(3, '0')}`} className="col-span-3" disabled />
+                                </div>
+                                <div className="grid grid-cols-4 items-center gap-4">
+                                    <Label htmlFor="date" className="text-right">Tanggal</Label>
+                                    <Input id="date" type="date" defaultValue={new Date().toISOString().split('T')[0]} className="col-span-3" />
+                                </div>
+                                <div className="grid grid-cols-4 items-center gap-4">
+                                    <Label htmlFor="customer" className="text-right">Pelanggan</Label>
+                                    <Input id="customer" name="customer" placeholder="Nama pelanggan" className="col-span-3" required/>
+                                </div>
+                                <div className="grid grid-cols-4 items-center gap-4">
+                                    <Label htmlFor="productName" className="text-right">Produk</Label>
+                                    <Select name="productName">
+                                        <SelectTrigger className="col-span-3">
+                                            <SelectValue placeholder="Pilih produk" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {products.map(product => (
+                                                <SelectItem key={product.id} value={product.name}>{product.name}</SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                <div className="grid grid-cols-4 items-center gap-4">
+                                    <Label htmlFor="quantity" className="text-right">Jumlah</Label>
+                                    <Input id="quantity" name="quantity" type="number" placeholder="0" className="col-span-3" required/>
+                                </div>
+                                <div className="grid grid-cols-4 items-center gap-4">
+                                    <Label htmlFor="total" className="text-right">Total Harga</Label>
+                                    <Input id="total" name="total" type="number" placeholder="Rp 0" className="col-span-3" required/>
+                                </div>
                             </div>
-                             <div className="grid grid-cols-4 items-center gap-4">
-                                <Label htmlFor="date" className="text-right">Tanggal</Label>
-                                <Input id="date" type="date" defaultValue={new Date().toISOString().split('T')[0]} className="col-span-3" />
-                            </div>
-                            <div className="grid grid-cols-4 items-center gap-4">
-                                <Label htmlFor="customer" className="text-right">Pelanggan</Label>
-                                <Input id="customer" name="customer" placeholder="Nama pelanggan" className="col-span-3" required/>
-                            </div>
-                             <div className="grid grid-cols-4 items-center gap-4">
-                                <Label htmlFor="productName" className="text-right">Produk</Label>
-                                <Select name="productName">
-                                    <SelectTrigger className="col-span-3">
-                                        <SelectValue placeholder="Pilih produk" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {products.map(product => (
-                                            <SelectItem key={product.id} value={product.name}>{product.name}</SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                             <div className="grid grid-cols-4 items-center gap-4">
-                                <Label htmlFor="quantity" className="text-right">Jumlah</Label>
-                                <Input id="quantity" name="quantity" type="number" placeholder="0" className="col-span-3" required/>
-                            </div>
-                            <div className="grid grid-cols-4 items-center gap-4">
-                                <Label htmlFor="total" className="text-right">Total Harga</Label>
-                                <Input id="total" name="total" type="number" placeholder="Rp 0" className="col-span-3" required/>
-                            </div>
-                        </div>
-                        <DialogFooter>
-                            <Button type="submit">Simpan Pesanan</Button>
-                        </DialogFooter>
-                    </form>
-                </DialogContent>
-            </Dialog>
+                            <DialogFooter>
+                                <Button type="submit">Simpan Pesanan</Button>
+                            </DialogFooter>
+                        </form>
+                    </DialogContent>
+                </Dialog>
+            </div>
           </div>
         </CardHeader>
         <CardContent>
