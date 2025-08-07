@@ -35,6 +35,7 @@ import { Input } from "@/components/ui/input"
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogFooter,
@@ -486,3 +487,5 @@ export default function PenjualanPage() {
     </div>
   );
 }
+
+    
