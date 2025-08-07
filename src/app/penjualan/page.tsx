@@ -2,7 +2,7 @@
 "use client"
 
 import { useState, useContext, useMemo } from "react"
-import { MoreHorizontal, PlusCircle, Search, FileText, Send, Edit, Calendar as CalendarIcon } from "lucide-react"
+import { MoreHorizontal, PlusCircle, Search, FileText, Send, Edit, Calendar as CalendarIcon, Package, User, ShoppingCart, Banknote } from "lucide-react"
 import { DateRange } from "react-day-picker"
 import { format, startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfYear, endOfYear, isWithinInterval, parseISO } from "date-fns"
 
@@ -42,7 +42,6 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
 import {
   Select,
   SelectContent,
@@ -234,7 +233,7 @@ export default function PenjualanPage() {
                   <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                   <Input
                     type="search"
-                    placeholder="Cari pesanan, produk, pelanggan..."
+                    placeholder="Cari pesanan, produk..."
                     className="pl-8 w-full"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
@@ -349,7 +348,60 @@ export default function PenjualanPage() {
           </div>
         </CardHeader>
         <CardContent>
-          <Table>
+          {/* Mobile View */}
+          <div className="md:hidden space-y-4">
+            {filteredOrders.map((order) => (
+                <Card key={order.id} className="w-full">
+                    <CardHeader>
+                        <div className="flex justify-between items-start">
+                            <div>
+                                <CardTitle className="text-base">{order.id}</CardTitle>
+                                <CardDescription>{new Date(order.date).toLocaleDateString('id-ID')}</CardDescription>
+                            </div>
+                             <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button size="icon" variant="ghost" className="h-8 w-8">
+                                    <MoreHorizontal className="h-4 w-4" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                  <DropdownMenuLabel>Aksi</DropdownMenuLabel>
+                                   <DropdownMenuItem onSelect={() => handleEditClick(order)}>
+                                      <Edit className="mr-2 h-4 w-4" /> Edit
+                                   </DropdownMenuItem>
+                                  <DropdownMenuItem>
+                                    <FileText className="mr-2 h-4 w-4" /> Buat Invoice
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem>
+                                    <Send className="mr-2 h-4 w-4" /> Buat Surat Jalan
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                        </div>
+                    </CardHeader>
+                    <CardContent className="grid gap-2 text-sm">
+                        <div className="flex items-center gap-2">
+                            <User className="h-4 w-4 text-muted-foreground" />
+                            <span>{order.customer}</span>
+                        </div>
+                         <div className="flex items-center gap-2">
+                            <Package className="h-4 w-4 text-muted-foreground" />
+                            <span>{order.productName} ({order.quantity} pcs)</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <Banknote className="h-4 w-4 text-muted-foreground" />
+                            <span>{formatCurrency(order.total)}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                             <Badge variant={getStatusVariant(order.status)}>{order.status}</Badge>
+                        </div>
+                    </CardContent>
+                </Card>
+            ))}
+          </div>
+
+          {/* Desktop View */}
+          <Table className="hidden md:table">
             <TableHeader>
               <TableRow>
                 <TableHead>Nomor SO</TableHead>

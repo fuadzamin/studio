@@ -1,3 +1,4 @@
+
 "use client";
 
 import { usePathname } from "next/navigation";
@@ -24,7 +25,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </Sidebar>
       <SidebarInset>
         <Header />
-        <main className="flex-1 p-4 md:p-6 lg:p-8 bg-background">{children}</main>
+        <main className="flex-1 p-4 md:p-6 lg:p-8 bg-background relative">{children}</main>
       </SidebarInset>
     </SidebarProvider>
   );
