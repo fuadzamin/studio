@@ -104,9 +104,9 @@ function BomTab() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Daftar Bill of Materials</CardTitle>
+        <CardTitle>Kebutuhan Material</CardTitle>
         <CardDescription>
-          Pilih produk untuk melihat Bill of Materials-nya.
+          Pilih produk untuk melihat kebutuhan materialnya.
         </CardDescription>
         <div className="flex items-center justify-between pt-4">
           <div className="w-full max-w-sm">
@@ -415,12 +415,12 @@ export default function ProduksiPage() {
       <div>
         <h1 className="text-3xl font-bold">Produksi & Material</h1>
         <p className="text-muted-foreground mt-2">
-          Lihat Bill of Materials (BOM) dan kelola stok material mentah.
+          Lihat kebutuhan material (BOM) dan kelola stok material mentah.
         </p>
       </div>
       <Tabs defaultValue="bom">
         <TabsList className="mb-4">
-          <TabsTrigger value="bom">Bill of Materials</TabsTrigger>
+          <TabsTrigger value="bom">Kebutuhan Material</TabsTrigger>
           <TabsTrigger value="stok">Stok Material</TabsTrigger>
         </TabsList>
         <TabsContent value="bom">
