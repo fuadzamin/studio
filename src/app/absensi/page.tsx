@@ -2,8 +2,9 @@
 "use client"
 
 import { useState } from "react"
-import { Calendar as CalendarIcon, UserCheck, UserX } from "lucide-react"
+import { Calendar as CalendarIcon, UserCheck, UserX, Clock } from "lucide-react"
 import { format } from "date-fns"
+import { id as indonesiaLocale } from "date-fns/locale"
 
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -35,31 +36,53 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { Input } from "@/components/ui/input"
 
 
-const employeeAttendance = [
-    { id: "1", name: "Budi Santoso", status: "Hadir" },
-    { id: "2", name: "Citra Lestari", status: "Hadir" },
-    { id: "3", name: "Doni Firmansyah", status: "Tidak Hadir" },
-    { id: "4", name: "Eka Putri", status: "Hadir" },
+const initialAttendanceData = [
+    { id: "1", name: "Budi Santoso", date: "2024-07-28", status: "Hadir", notes: "" },
+    { id: "2", name: "Citra Lestari", date: "2024-07-28", status: "Hadir", notes: "" },
+    { id: "3", name: "Doni Firmansyah", date: "2024-07-28", status: "Tidak Hadir", notes: "" },
+    { id: "4", name: "Eka Putri", date: "2024-07-28", status: "Telat", notes: "Bocor ban di jalan" },
 ]
+
+type AttendanceRecord = typeof initialAttendanceData[0];
+
 
 export default function AbsensiPage() {
   const [date, setDate] = useState<Date | undefined>(new Date())
+  const [attendance, setAttendance] = useState<AttendanceRecord[]>(initialAttendanceData);
+
+  const handleStatusChange = (id: string, newStatus: string) => {
+    setAttendance(prev => 
+      prev.map(record => 
+        record.id === id ? { ...record, status: newStatus, notes: newStatus !== 'Telat' ? '' : record.notes } : record
+      )
+    );
+  };
+  
+  const handleNotesChange = (id: string, newNotes: string) => {
+    setAttendance(prev => 
+      prev.map(record => 
+        record.id === id ? { ...record, notes: newNotes } : record
+      )
+    );
+  };
+
 
   return (
     <div className="space-y-8">
       <div>
         <h1 className="text-3xl font-bold">Absensi Karyawan</h1>
         <p className="text-muted-foreground mt-2">
-          Catat kehadiran harian karyawan dan lihat rekapitulasi.
+          Catat dan kelola kehadiran harian karyawan.
         </p>
       </div>
 
       <Card>
          <CardHeader>
-          <CardTitle>Catat Kehadiran Harian</CardTitle>
-          <CardDescription>Pilih tanggal untuk mencatat atau melihat absensi.</CardDescription>
+          <CardTitle>Catatan Kehadiran</CardTitle>
+          <CardDescription>Pilih tanggal untuk melihat atau mencatat absensi. Status dan keterangan dapat diubah langsung di tabel.</CardDescription>
           <div className="pt-4">
              <Popover>
                 <PopoverTrigger asChild>
@@ -71,7 +94,7 @@ export default function AbsensiPage() {
                     )}
                 >
                     <CalendarIcon className="mr-2 h-4 w-4" />
-                    {date ? format(date, "PPP") : <span>Pilih tanggal</span>}
+                    {date ? format(date, "PPP", { locale: indonesiaLocale }) : <span>Pilih tanggal</span>}
                 </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0">
@@ -90,15 +113,21 @@ export default function AbsensiPage() {
                 <TableHeader>
                     <TableRow>
                         <TableHead>Nama Karyawan</TableHead>
-                        <TableHead className="w-[200px]">Status Kehadiran</TableHead>
+                        <TableHead>Tanggal</TableHead>
+                        <TableHead className="w-[180px]">Status Kehadiran</TableHead>
+                        <TableHead>Keterangan (jika telat)</TableHead>
                     </TableRow>
                 </TableHeader>
                 <TableBody>
-                    {employeeAttendance.map((employee) => (
+                    {attendance.map((employee) => (
                         <TableRow key={employee.id}>
                             <TableCell className="font-medium">{employee.name}</TableCell>
+                             <TableCell>{format(new Date(employee.date), "dd MMM yyyy", { locale: indonesiaLocale })}</TableCell>
                             <TableCell>
-                                <Select defaultValue={employee.status}>
+                                <Select 
+                                    defaultValue={employee.status} 
+                                    onValueChange={(value) => handleStatusChange(employee.id, value)}
+                                >
                                     <SelectTrigger>
                                         <SelectValue placeholder="Pilih status"/>
                                     </SelectTrigger>
@@ -106,6 +135,11 @@ export default function AbsensiPage() {
                                         <SelectItem value="Hadir">
                                             <div className="flex items-center">
                                                 <UserCheck className="mr-2 h-4 w-4 text-green-600"/> Hadir
+                                            </div>
+                                        </SelectItem>
+                                         <SelectItem value="Telat">
+                                            <div className="flex items-center">
+                                                <Clock className="mr-2 h-4 w-4 text-yellow-600"/> Telat
                                             </div>
                                         </SelectItem>
                                         <SelectItem value="Tidak Hadir">
@@ -116,12 +150,23 @@ export default function AbsensiPage() {
                                     </SelectContent>
                                 </Select>
                             </TableCell>
+                            <TableCell>
+                                {employee.status === 'Telat' ? (
+                                    <Input 
+                                        placeholder="Alasan telat..."
+                                        value={employee.notes}
+                                        onChange={(e) => handleNotesChange(employee.id, e.target.value)}
+                                    />
+                                ) : (
+                                    <span className="text-muted-foreground">-</span>
+                                )}
+                            </TableCell>
                         </TableRow>
                     ))}
                 </TableBody>
             </Table>
              <div className="flex justify-end mt-6">
-                <Button>Simpan Absensi</Button>
+                <Button>Simpan Perubahan</Button>
             </div>
         </CardContent>
       </Card>
