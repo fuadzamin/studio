@@ -2,7 +2,7 @@
 "use client"
 
 import { useState, useMemo } from "react"
-import { Calendar as CalendarIcon, UserCheck, UserX, Clock, Search } from "lucide-react"
+import { Calendar as CalendarIcon, UserCheck, UserX, Clock, Search, PlusCircle } from "lucide-react"
 import { format, isWithinInterval, parseISO, startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfYear, endOfYear, subDays } from "date-fns"
 import { id as indonesiaLocale } from "date-fns/locale"
 import { DateRange } from "react-day-picker"
@@ -38,25 +38,41 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Input } from "@/components/ui/input"
+import { useToast } from "@/hooks/use-toast"
 
+
+const employeeList = [
+    { id: "emp-1", name: "Budi Santoso" },
+    { id: "emp-2", name: "Citra Lestari" },
+    { id: "emp-3", name: "Doni Firmansyah" },
+    { id: "emp-4", name: "Eka Putri" },
+];
 
 const initialAttendanceData = [
-    { id: "1", name: "Budi Santoso", date: new Date().toISOString().split('T')[0], status: "Hadir", notes: "" },
-    { id: "2", name: "Citra Lestari", date: new Date().toISOString().split('T')[0], status: "Hadir", notes: "" },
-    { id: "3", name: "Doni Firmansyah", date: new Date().toISOString().split('T')[0], status: "Tidak Hadir", notes: "" },
-    { id: "4", name: "Eka Putri", date: subDays(new Date(), 1).toISOString().split('T')[0], status: "Telat", notes: "Bocor ban di jalan" },
-    { id: "5", name: "Budi Santoso", date: subDays(new Date(), 1).toISOString().split('T')[0], status: "Hadir", notes: "" },
-    { id: "6", name: "Citra Lestari", date: subDays(new Date(), 8).toISOString().split('T')[0], status: "Hadir", notes: "" },
-    { id: "7", name: "Doni Firmansyah", date: subDays(new Date(), 35).toISOString().split('T')[0], status: "Hadir", notes: "" },
+    { id: "1", employeeId: "emp-1", name: "Budi Santoso", date: subDays(new Date(), 1).toISOString().split('T')[0], status: "Hadir", notes: "" },
+    { id: "2", employeeId: "emp-2", name: "Citra Lestari", date: subDays(new Date(), 1).toISOString().split('T')[0], status: "Hadir", notes: "" },
+    { id: "3", employeeId: "emp-3", name: "Doni Firmansyah", date: subDays(new Date(), 1).toISOString().split('T')[0], status: "Tidak Hadir", notes: "" },
+    { id: "4", employeeId: "emp-4", name: "Eka Putri", date: subDays(new Date(), 1).toISOString().split('T')[0], status: "Telat", notes: "Bocor ban di jalan" },
+    { id: "5", employeeId: "emp-1", name: "Budi Santoso", date: subDays(new Date(), 2).toISOString().split('T')[0], status: "Hadir", notes: "" },
+    { id: "6", employeeId: "emp-2", name: "Citra Lestari", date: subDays(new Date(), 8).toISOString().split('T')[0], status: "Hadir", notes: "" },
+    { id: "7", employeeId: "emp-3", name: "Doni Firmansyah", date: subDays(new Date(), 35).toISOString().split('T')[0], status: "Hadir", notes: "" },
 ]
 
-type AttendanceRecord = typeof initialAttendanceData[0];
+type AttendanceRecord = {
+    id: string;
+    employeeId: string;
+    name: string;
+    date: string;
+    status: string;
+    notes: string;
+};
 
 
 export default function AbsensiPage() {
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
   const [attendance, setAttendance] = useState<AttendanceRecord[]>(initialAttendanceData);
   const [searchTerm, setSearchTerm] = useState("");
+  const { toast } = useToast();
 
   const handleStatusChange = (id: string, newStatus: string) => {
     setAttendance(prev => 
@@ -72,6 +88,38 @@ export default function AbsensiPage() {
         record.id === id ? { ...record, notes: newNotes } : record
       )
     );
+  };
+
+  const handleAddTodaysAttendance = () => {
+    const todayStr = new Date().toISOString().split('T')[0];
+    const newRecords: AttendanceRecord[] = [];
+
+    employeeList.forEach(employee => {
+        const hasRecordToday = attendance.some(record => record.employeeId === employee.id && record.date === todayStr);
+        if (!hasRecordToday) {
+            newRecords.push({
+                id: `att_${new Date().getTime()}_${employee.id}`,
+                employeeId: employee.id,
+                name: employee.name,
+                date: todayStr,
+                status: "Hadir",
+                notes: "",
+            });
+        }
+    });
+    
+    if(newRecords.length > 0) {
+        setAttendance(prev => [...newRecords, ...prev]);
+        toast({
+            title: "Sukses",
+            description: `${newRecords.length} catatan absensi baru untuk hari ini telah ditambahkan.`
+        });
+    } else {
+        toast({
+            title: "Info",
+            description: "Semua karyawan sudah memiliki catatan absensi untuk hari ini."
+        });
+    }
   };
 
   const filteredAttendance = useMemo(() => {
@@ -124,7 +172,7 @@ export default function AbsensiPage() {
          <CardHeader>
           <CardTitle>Catatan Kehadiran</CardTitle>
           <CardDescription>Pilih tanggal untuk melihat atau mencatat absensi. Status dan keterangan dapat diubah langsung di tabel.</CardDescription>
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pt-4">
              <div className="flex-1 flex flex-col sm:flex-row items-center gap-2 w-full">
                 <div className="relative w-full sm:max-w-xs">
                     <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -187,6 +235,11 @@ export default function AbsensiPage() {
                     </Popover>
                 </div>
             </div>
+             <div className="w-full sm:w-auto">
+                <Button onClick={handleAddTodaysAttendance} className="w-full">
+                    <PlusCircle className="mr-2 h-4 w-4"/> Input Absensi Hari Ini
+                </Button>
+            </div>
           </div>
         </CardHeader>
         <CardContent>
@@ -204,7 +257,7 @@ export default function AbsensiPage() {
                         filteredAttendance.map((employee) => (
                             <TableRow key={employee.id}>
                                 <TableCell className="font-medium">{employee.name}</TableCell>
-                                <TableCell>{format(new Date(employee.date), "dd MMM yyyy", { locale: indonesiaLocale })}</TableCell>
+                                <TableCell>{format(parseISO(employee.date), "dd MMM yyyy", { locale: indonesiaLocale })}</TableCell>
                                 <TableCell>
                                     <Select 
                                         defaultValue={employee.status} 
