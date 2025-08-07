@@ -106,7 +106,7 @@ function BomTab() {
       <CardHeader>
         <CardTitle>Kebutuhan Material</CardTitle>
         <CardDescription>
-          Pilih produk untuk melihat kebutuhan materialnya.
+          Pilih produk untuk melihat kebutuhan material untuk membuat 1 unit produk.
         </CardDescription>
         <div className="flex items-center justify-between pt-4">
           <div className="w-full max-w-sm">
@@ -172,6 +172,7 @@ function MaterialStockTab() {
   const { materials, addMaterial, updateMaterial, deleteMaterial } = materialContext;
   const { products } = productContext;
 
+  const [filterProductId, setFilterProductId] = useState<string | "all">("all");
   const [isAddEditDialogOpen, setAddEditDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [selectedMaterial, setSelectedMaterial] = useState<Material | null>(null);
@@ -186,6 +187,18 @@ function MaterialStockTab() {
     });
     return Array.from(materialSet);
   }, [products]);
+  
+  const filteredMaterials = useMemo(() => {
+    if (filterProductId === "all") {
+      return materials;
+    }
+    const selectedProduct = products.find(p => p.id === filterProductId);
+    if (!selectedProduct) {
+      return [];
+    }
+    const bomMaterialNames = new Set(selectedProduct.bom.map(item => item.materialName));
+    return materials.filter(material => bomMaterialNames.has(material.name));
+  }, [filterProductId, materials, products]);
 
 
   const form = useForm<MaterialFormValues>({
@@ -253,9 +266,24 @@ function MaterialStockTab() {
       <CardHeader>
         <CardTitle>Stok Material</CardTitle>
         <CardDescription>
-          Kelola inventaris semua material mentah Anda.
+          Kelola inventaris semua material mentah Anda. Filter berdasarkan produk untuk melihat material yang relevan.
         </CardDescription>
-        <div className="flex items-center justify-end pt-4">
+        <div className="flex items-center justify-between pt-4">
+           <div className="w-full max-w-sm">
+            <Select onValueChange={setFilterProductId} defaultValue="all">
+              <SelectTrigger>
+                <SelectValue placeholder="Filter berdasarkan produk..." />
+              </SelectTrigger>
+              <SelectContent>
+                 <SelectItem value="all">Semua Produk</SelectItem>
+                {products.filter(p => p.bom.length > 0).map((p) => (
+                  <SelectItem key={p.id} value={p.id}>
+                    {p.name} ({p.code})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
           <Dialog open={isAddEditDialogOpen} onOpenChange={setAddEditDialogOpen}>
             <DialogTrigger asChild>
               <Button size="sm" onClick={handleAddClick}>
@@ -356,7 +384,7 @@ function MaterialStockTab() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {materials.map((material) => (
+            {filteredMaterials.map((material) => (
               <TableRow key={material.id}>
                 <TableCell className="font-medium">{material.name}</TableCell>
                 <TableCell>
