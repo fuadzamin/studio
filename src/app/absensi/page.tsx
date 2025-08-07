@@ -39,10 +39,10 @@ import { Input } from "@/components/ui/input"
 
 
 const employeeAttendance = [
-    { id: "1", name: "Budi Santoso", status: "Hadir" },
-    { id: "2", name: "Citra Lestari", status: "Hadir" },
-    { id: "3", name: "Doni Firmansyah", status: "Tidak Hadir" },
-    { id: "4", name: "Eka Putri", status: "Hadir" },
+    { id: "1", name: "Budi Santoso", status: "Hadir", date: "2024-05-28" },
+    { id: "2", name: "Citra Lestari", status: "Hadir", date: "2024-05-28" },
+    { id: "3", name: "Doni Firmansyah", status: "Tidak Hadir", date: "2024-05-28" },
+    { id: "4", name: "Eka Putri", status: "Hadir", date: "2024-05-28" },
 ]
 
 export default function AbsensiPage() {
@@ -50,10 +50,11 @@ export default function AbsensiPage() {
   const [searchTerm, setSearchTerm] = useState("")
 
   const filteredEmployees = useMemo(() => {
+    // In a real app, you would filter by the selected date as well
     return employeeAttendance.filter(employee => 
       employee.name.toLowerCase().includes(searchTerm.toLowerCase())
     );
-  }, [searchTerm]);
+  }, [searchTerm, date]);
 
   const handlePresetChange = (value: string) => {
     const now = new Date();
@@ -134,6 +135,7 @@ export default function AbsensiPage() {
                 <TableHeader>
                     <TableRow>
                         <TableHead>Nama Karyawan</TableHead>
+                        <TableHead>Tanggal</TableHead>
                         <TableHead className="w-[200px]">Status Kehadiran</TableHead>
                     </TableRow>
                 </TableHeader>
@@ -141,6 +143,7 @@ export default function AbsensiPage() {
                     {filteredEmployees.map((employee) => (
                         <TableRow key={employee.id}>
                             <TableCell className="font-medium">{employee.name}</TableCell>
+                             <TableCell>{new Date(employee.date).toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' })}</TableCell>
                             <TableCell>
                                 <Select defaultValue={employee.status}>
                                     <SelectTrigger>
