@@ -406,14 +406,8 @@ export default function AbsensiPage() {
                     )}
                 </TableBody>
             </Table>
-             <div className="flex justify-end mt-6">
-                <Button>Simpan Perubahan</Button>
-            </div>
         </CardContent>
       </Card>
     </div>
   );
 }
-
-
-    
