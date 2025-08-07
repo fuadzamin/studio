@@ -1,10 +1,14 @@
+
 "use client";
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { DollarSign, Users, ShoppingCart, AlertCircle } from "lucide-react";
+import { DollarSign, Users, ShoppingCart, AlertCircle, Factory } from "lucide-react";
 import { ChartContainer, ChartTooltipContent } from "@/components/ui/chart";
+import { useContext } from "react";
+import { ProductContext } from "@/contexts/ProductContext";
+import { MaterialContext } from "@/contexts/MaterialContext";
 
 const chartData = [
   { month: "Jan", income: 45000, expense: 22000 },
@@ -15,14 +19,42 @@ const chartData = [
   { month: "Jun", income: 61000, expense: 35000 },
 ];
 
-const lowStockItems = [
-  { code: "NC001", name: "Nurse Call Unit", stock: 5, unit: "pcs" },
-  { code: "JDM01", name: "Digital Mosque Clock", stock: 2, unit: "pcs" },
-  { code: "QM003", name: "Queuing Machine Display", stock: 8, unit: "pcs" },
-  { code: "LED-R-5M", name: "LED Running Text Board", stock: 3, unit: "roll" },
-];
-
 export default function DashboardPage() {
+  const productContext = useContext(ProductContext);
+  const materialContext = useContext(MaterialContext);
+
+  if (!productContext || !materialContext) {
+    return <div>Loading...</div>; // Or a proper loading state
+  }
+
+  const { products } = productContext;
+  const { materials } = materialContext;
+
+  const productionPotential = products
+    .filter(p => p.bom && p.bom.length > 0)
+    .map(product => {
+      let maxPossibleUnits = Infinity;
+
+      product.bom.forEach(bomItem => {
+        const material = materials.find(m => m.name === bomItem.materialName);
+        const stock = material ? material.stock : 0;
+        const possibleUnits = Math.floor(stock / bomItem.quantity);
+        if (possibleUnits < maxPossibleUnits) {
+          maxPossibleUnits = possibleUnits;
+        }
+      });
+      
+      // If a material is not in stock at all, maxPossibleUnits will be Infinity, so we reset to 0
+      if(maxPossibleUnits === Infinity) maxPossibleUnits = 0;
+
+      return {
+        code: product.code,
+        name: product.name,
+        producibleUnits: maxPossibleUnits,
+        unit: product.unit,
+      };
+    });
+
   return (
     <div className="space-y-8">
       <div>
@@ -99,25 +131,27 @@ export default function DashboardPage() {
         </Card>
         <Card className="lg:col-span-1">
           <CardHeader className="flex flex-row items-center gap-2">
-             <AlertCircle className="h-5 w-5 text-destructive" />
-            <CardTitle>Low Stock Items</CardTitle>
+             <Factory className="h-5 w-5 text-primary" />
+            <CardTitle>Potensi Produksi</CardTitle>
           </CardHeader>
           <CardContent>
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Product Name</TableHead>
-                  <TableHead>Code</TableHead>
-                  <TableHead className="text-right">Stock</TableHead>
+                  <TableHead>Nama Produk</TableHead>
+                  <TableHead>Kode</TableHead>
+                  <TableHead className="text-right">Dapat Dibuat</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {lowStockItems.map((item) => (
+                {productionPotential.map((item) => (
                   <TableRow key={item.code}>
                     <TableCell className="font-medium">{item.name}</TableCell>
                     <TableCell>{item.code}</TableCell>
                     <TableCell className="text-right">
-                      <Badge variant="destructive">{`${item.stock} ${item.unit}`}</Badge>
+                       <Badge variant={item.producibleUnits > 0 ? "default" : "destructive"} className={item.producibleUnits > 0 ? 'bg-blue-600' : ''}>
+                        {`${item.producibleUnits} ${item.unit}`}
+                      </Badge>
                     </TableCell>
                   </TableRow>
                 ))}
