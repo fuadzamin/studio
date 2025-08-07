@@ -1,7 +1,7 @@
 
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, useEffect } from "react"
 import { Calendar as CalendarIcon, UserCheck, UserX, Clock, Search, PlusCircle } from "lucide-react"
 import { format, isWithinInterval, parseISO, startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfYear, endOfYear, subDays } from "date-fns"
 import { id as indonesiaLocale } from "date-fns/locale"
@@ -39,6 +39,16 @@ import {
 } from "@/components/ui/select"
 import { Input } from "@/components/ui/input"
 import { useToast } from "@/hooks/use-toast"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label"
 
 
 const employeeList = [
@@ -67,12 +77,32 @@ type AttendanceRecord = {
     notes: string;
 };
 
+type NewAttendanceInput = Omit<AttendanceRecord, 'id' | 'name'>;
+
 
 export default function AbsensiPage() {
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
   const [attendance, setAttendance] = useState<AttendanceRecord[]>(initialAttendanceData);
   const [searchTerm, setSearchTerm] = useState("");
   const { toast } = useToast();
+  
+  const [isAddDialogOpen, setAddDialogOpen] = useState(false);
+  const [newAttendanceDate, setNewAttendanceDate] = useState<string>(new Date().toISOString().split('T')[0]);
+  const [newAttendanceInputs, setNewAttendanceInputs] = useState<NewAttendanceInput[]>([]);
+
+  useEffect(() => {
+    // Initialize inputs when dialog opens for the selected date
+    if (isAddDialogOpen) {
+      const initialInputs = employeeList.map(emp => ({
+        employeeId: emp.id,
+        date: newAttendanceDate,
+        status: 'Hadir', // Default status
+        notes: ''
+      }));
+      setNewAttendanceInputs(initialInputs);
+    }
+  }, [isAddDialogOpen, newAttendanceDate]);
+
 
   const handleStatusChange = (id: string, newStatus: string) => {
     setAttendance(prev => 
@@ -89,38 +119,43 @@ export default function AbsensiPage() {
       )
     );
   };
+  
+  const handleNewAttendanceInputChange = (employeeId: string, field: 'status' | 'notes', value: string) => {
+    setNewAttendanceInputs(prev =>
+      prev.map(input =>
+        input.employeeId === employeeId ? { ...input, [field]: value } : input
+      )
+    );
+  };
 
-  const handleAddTodaysAttendance = () => {
-    const todayStr = new Date().toISOString().split('T')[0];
-    const newRecords: AttendanceRecord[] = [];
-
-    employeeList.forEach(employee => {
-        const hasRecordToday = attendance.some(record => record.employeeId === employee.id && record.date === todayStr);
-        if (!hasRecordToday) {
-            newRecords.push({
-                id: `att_${new Date().getTime()}_${employee.id}`,
-                employeeId: employee.id,
-                name: employee.name,
-                date: todayStr,
-                status: "Hadir",
-                notes: "",
-            });
+  const handleSaveNewAttendance = () => {
+    const recordsForDateExist = attendance.some(record => record.date === newAttendanceDate);
+    if(recordsForDateExist) {
+        toast({
+            title: "Gagal",
+            description: `Data absensi untuk tanggal ${format(parseISO(newAttendanceDate), "dd MMM yyyy")} sudah ada.`,
+            variant: "destructive"
+        });
+        return;
+    }
+    
+    const newRecords: AttendanceRecord[] = newAttendanceInputs.map(input => {
+        const employee = employeeList.find(emp => emp.id === input.employeeId);
+        return {
+            ...input,
+            id: `att_${new Date().getTime()}_${input.employeeId}`,
+            name: employee?.name || 'Unknown',
         }
     });
-    
-    if(newRecords.length > 0) {
-        setAttendance(prev => [...newRecords, ...prev]);
-        toast({
-            title: "Sukses",
-            description: `${newRecords.length} catatan absensi baru untuk hari ini telah ditambahkan.`
-        });
-    } else {
-        toast({
-            title: "Info",
-            description: "Semua karyawan sudah memiliki catatan absensi untuk hari ini."
-        });
-    }
-  };
+
+    setAttendance(prev => [...newRecords, ...prev]);
+    toast({
+        title: "Sukses",
+        description: `Absensi untuk tanggal ${format(parseISO(newAttendanceDate), "dd MMM yyyy")} berhasil disimpan.`
+    });
+    setAddDialogOpen(false);
+  }
+
 
   const filteredAttendance = useMemo(() => {
     let filtered = attendance.filter(record => 
@@ -135,7 +170,7 @@ export default function AbsensiPage() {
         });
     }
 
-    return filtered;
+    return filtered.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   }, [attendance, searchTerm, dateRange]);
   
   const handlePresetFilterChange = (value: string) => {
@@ -170,8 +205,8 @@ export default function AbsensiPage() {
 
       <Card>
          <CardHeader>
-          <CardTitle>Catatan Kehadiran</CardTitle>
-          <CardDescription>Pilih tanggal untuk melihat atau mencatat absensi. Status dan keterangan dapat diubah langsung di tabel.</CardDescription>
+          <CardTitle>Riwayat Kehadiran</CardTitle>
+          <CardDescription>Pilih tanggal untuk melihat atau mengubah absensi. Status dan keterangan dapat diubah langsung di tabel.</CardDescription>
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pt-4">
              <div className="flex-1 flex flex-col sm:flex-row items-center gap-2 w-full">
                 <div className="relative w-full sm:max-w-xs">
@@ -218,7 +253,7 @@ export default function AbsensiPage() {
                                 format(dateRange.from, "LLL dd, y")
                             )
                             ) : (
-                            <span>Pilih tanggal</span>
+                            <span>Pilih rentang tanggal</span>
                             )}
                         </Button>
                         </PopoverTrigger>
@@ -236,9 +271,73 @@ export default function AbsensiPage() {
                 </div>
             </div>
              <div className="w-full sm:w-auto">
-                <Button onClick={handleAddTodaysAttendance} className="w-full">
-                    <PlusCircle className="mr-2 h-4 w-4"/> Input Absensi Hari Ini
-                </Button>
+                 <Dialog open={isAddDialogOpen} onOpenChange={setAddDialogOpen}>
+                    <DialogTrigger asChild>
+                       <Button className="w-full">
+                           <PlusCircle className="mr-2 h-4 w-4"/> Input Absensi Baru
+                       </Button>
+                    </DialogTrigger>
+                    <DialogContent className="sm:max-w-3xl">
+                        <DialogHeader>
+                            <DialogTitle>Input Absensi Karyawan</DialogTitle>
+                            <DialogDescription>
+                               Pilih tanggal dan isi status kehadiran untuk semua karyawan.
+                            </DialogDescription>
+                        </DialogHeader>
+                        <div className="grid gap-4 py-4">
+                            <div className="flex items-center gap-4">
+                                <Label htmlFor="attendance-date" className="whitespace-nowrap">Tanggal Absensi</Label>
+                                <Input 
+                                    id="attendance-date" 
+                                    type="date" 
+                                    value={newAttendanceDate} 
+                                    onChange={(e) => setNewAttendanceDate(e.target.value)} 
+                                    className="w-full sm:w-auto"
+                                />
+                            </div>
+                            <div className="max-h-[50vh] overflow-y-auto pr-4">
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead>Nama Karyawan</TableHead>
+                                            <TableHead className="w-[180px]">Status</TableHead>
+                                            <TableHead>Keterangan</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {newAttendanceInputs.map(input => (
+                                            <TableRow key={input.employeeId}>
+                                                <TableCell className="font-medium">{employeeList.find(e => e.id === input.employeeId)?.name}</TableCell>
+                                                <TableCell>
+                                                    <Select value={input.status} onValueChange={(value) => handleNewAttendanceInputChange(input.employeeId, 'status', value)}>
+                                                        <SelectTrigger><SelectValue/></SelectTrigger>
+                                                        <SelectContent>
+                                                          <SelectItem value="Hadir"><div className="flex items-center"><UserCheck className="mr-2 h-4 w-4 text-green-600"/> Hadir</div></SelectItem>
+                                                          <SelectItem value="Telat"><div className="flex items-center"><Clock className="mr-2 h-4 w-4 text-yellow-600"/> Telat</div></SelectItem>
+                                                          <SelectItem value="Tidak Hadir"><div className="flex items-center"><UserX className="mr-2 h-4 w-4 text-red-600"/> Tidak Hadir</div></SelectItem>
+                                                        </SelectContent>
+                                                    </Select>
+                                                </TableCell>
+                                                <TableCell>
+                                                    {input.status === 'Telat' ? (
+                                                        <Input 
+                                                            placeholder="Alasan telat..."
+                                                            value={input.notes}
+                                                            onChange={(e) => handleNewAttendanceInputChange(input.employeeId, 'notes', e.target.value)}
+                                                        />
+                                                    ) : (<span className="text-muted-foreground">-</span>)}
+                                                </TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                            </div>
+                        </div>
+                        <DialogFooter>
+                            <Button onClick={handleSaveNewAttendance}>Simpan Absensi</Button>
+                        </DialogFooter>
+                    </DialogContent>
+                 </Dialog>
             </div>
           </div>
         </CardHeader>
@@ -260,7 +359,7 @@ export default function AbsensiPage() {
                                 <TableCell>{format(parseISO(employee.date), "dd MMM yyyy", { locale: indonesiaLocale })}</TableCell>
                                 <TableCell>
                                     <Select 
-                                        defaultValue={employee.status} 
+                                        value={employee.status} 
                                         onValueChange={(value) => handleStatusChange(employee.id, value)}
                                     >
                                         <SelectTrigger>
@@ -315,3 +414,6 @@ export default function AbsensiPage() {
     </div>
   );
 }
+
+
+    
