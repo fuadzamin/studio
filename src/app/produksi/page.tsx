@@ -47,7 +47,7 @@ export default function ProduksiPage() {
       <div>
         <h1 className="text-3xl font-bold">Bill of Materials (BOM)</h1>
         <p className="text-muted-foreground mt-2">
-          Definisikan komponen atau material penyusun setiap produk.
+          Lihat komponen atau material penyusun untuk setiap produk.
         </p>
       </div>
 
@@ -55,11 +55,11 @@ export default function ProduksiPage() {
         <CardHeader>
           <CardTitle>Daftar Bill of Materials</CardTitle>
           <CardDescription>
-            Pilih produk untuk melihat atau mengedit Bill of Materials-nya.
+            Pilih produk untuk melihat Bill of Materials-nya.
           </CardDescription>
              <div className="flex items-center justify-between pt-4">
                 <div className="w-full max-w-sm">
-                     <Select onValueChange={setSelectedProductId}>
+                     <Select onValueChange={setSelectedProductId} value={selectedProductId || ""}>
                         <SelectTrigger>
                           <SelectValue placeholder="Pilih produk..." />
                         </SelectTrigger>
@@ -70,10 +70,6 @@ export default function ProduksiPage() {
                         </SelectContent>
                       </Select>
                 </div>
-                 <Button size="sm" disabled>
-                    <PlusCircle className="mr-2 h-4 w-4" />
-                    Buat BOM Baru
-                  </Button>
             </div>
         </CardHeader>
         <CardContent>
