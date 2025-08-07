@@ -317,7 +317,7 @@ function MaterialStockTab() {
                         render={({ field }) => (
                         <FormItem>
                             <FormLabel>Satuan</FormLabel>
-                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <Select onValueChange={field.onChange} defaultValue={field.value} disabled={!!selectedMaterial}>
                                 <FormControl>
                                     <SelectTrigger><SelectValue placeholder="Satuan" /></SelectTrigger>
                                 </FormControl>
