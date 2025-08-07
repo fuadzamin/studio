@@ -1,10 +1,8 @@
 "use client";
 
-import { useState, useContext } from "react";
-import { PlusCircle } from "lucide-react";
+import { useState, useContext, useEffect } from "react";
 import { ProductContext } from "@/contexts/ProductContext";
 
-import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -35,6 +33,15 @@ export default function ProduksiPage() {
   }
   const { products } = context;
   const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
+
+  // This effect ensures that if the selected product is deleted from another page,
+  // the selection is cleared here to prevent inconsistencies.
+  useEffect(() => {
+    if (selectedProductId && !products.find(p => p.id === selectedProductId)) {
+      setSelectedProductId(null);
+    }
+  }, [products, selectedProductId]);
+
 
   const productsWithBom = products.filter(p => p.bom && p.bom.length > 0);
 
