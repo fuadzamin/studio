@@ -446,7 +446,7 @@ export default function ProduksiPage() {
           Lihat kebutuhan material (BOM) dan kelola stok material mentah.
         </p>
       </div>
-      <Tabs defaultValue="bom">
+      <Tabs defaultValue="stok">
         <TabsList className="mb-4">
           <TabsTrigger value="bom">Kebutuhan Material</TabsTrigger>
           <TabsTrigger value="stok">Stok Material</TabsTrigger>
