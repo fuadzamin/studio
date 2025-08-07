@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useState, ReactNode } from 'react';
+import { createContext, useState, ReactNode, useCallback } from 'react';
 import * as z from "zod";
 
 // --- Zod Schema ---
@@ -60,16 +60,18 @@ export const MaterialProvider = ({ children }: { children: ReactNode }) => {
     setMaterials(prev => prev.filter(m => m.id !== materialId));
   };
   
-  const addStock = (materialName: string, quantity: number, unit: string) => {
+  const addStock = useCallback((materialName: string, quantity: number, unit: string) => {
     setMaterials(prev => {
         const existingMaterial = prev.find(m => m.name === materialName);
         if (existingMaterial) {
+            // Material exists, update its stock
             return prev.map(m => 
                 m.name === materialName 
                 ? { ...m, stock: m.stock + quantity } 
                 : m
             );
         } else {
+            // Material doesn't exist, add it to the list
             const newMaterial: Material = {
                 id: `mat_${new Date().getTime()}`,
                 name: materialName,
@@ -79,7 +81,7 @@ export const MaterialProvider = ({ children }: { children: ReactNode }) => {
             return [...prev, newMaterial];
         }
     });
-  };
+  }, []);
 
   return (
     <MaterialContext.Provider value={{ materials, addMaterial, updateMaterial, deleteMaterial, addStock }}>
