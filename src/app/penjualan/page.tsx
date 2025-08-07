@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState, useContext } from "react"
@@ -47,6 +48,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { ProductContext } from "@/contexts/ProductContext"
+import { CustomerContext } from "@/contexts/CustomerContext"
 import { useToast } from "@/hooks/use-toast"
 
 
@@ -90,10 +92,13 @@ export default function PenjualanPage() {
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
 
   const productContext = useContext(ProductContext);
-  if (!productContext) {
-    throw new Error("PenjualanPage must be used within a ProductProvider");
+  const customerContext = useContext(CustomerContext);
+
+  if (!productContext || !customerContext) {
+    throw new Error("PenjualanPage must be used within a ProductProvider and CustomerProvider");
   }
   const { products } = productContext;
+  const { customers, addCustomer } = customerContext;
   const { toast } = useToast();
 
   const handleEditClick = (order: Order) => {
@@ -104,10 +109,27 @@ export default function PenjualanPage() {
   const handleCreateOrder = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const formData = new FormData(event.currentTarget);
+    const customerName = formData.get("customer") as string;
+    
+    // Check if customer exists, if not, add them
+    const customerExists = customers.some(c => c.name.toLowerCase() === customerName.toLowerCase());
+    if (!customerExists && customerName) {
+      addCustomer({
+        name: customerName,
+        address: "Alamat belum diisi",
+        contact: "Kontak belum diisi",
+        email: "email@belumdiisi.com",
+      });
+      toast({
+        title: "Pelanggan Baru Ditambahkan",
+        description: `"${customerName}" telah ditambahkan ke daftar pelanggan.`,
+      });
+    }
+
     const newOrder: Order = {
       id: `SO-${String(salesOrders.length + 1).padStart(3, '0')}`,
       date: new Date().toISOString().split('T')[0],
-      customer: formData.get("customer") as string,
+      customer: customerName,
       productName: formData.get("productName") as string,
       quantity: Number(formData.get("quantity")),
       total: Number(formData.get("total")),

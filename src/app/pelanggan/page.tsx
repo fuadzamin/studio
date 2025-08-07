@@ -1,11 +1,13 @@
+
 "use client";
 
-import { useState } from "react";
+import { useState, useContext } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import {
   MoreHorizontal,
   PlusCircle,
   Search,
-  File,
   Trash2,
   Edit,
 } from "lucide-react";
@@ -43,39 +45,87 @@ import {
   DialogFooter,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { useToast } from "@/hooks/use-toast";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { CustomerContext, Customer, CustomerFormValues, customerSchema } from "@/contexts/CustomerContext";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 
-const initialCustomers = [
-  {
-    id: "1",
-    name: "PT Sejahtera Abadi",
-    address: "Jl. Industri Raya No. 12, Jakarta",
-    contact: "081234567890",
-    email: "contact@sejahteraabadi.com",
-  },
-  {
-    id: "2",
-    name: "CV Maju Jaya",
-    address: "Jl. Pahlawan No. 45, Surabaya",
-    contact: "081298765432",
-    email: "info@majujaya.co.id",
-  },
-];
-
-type Customer = typeof initialCustomers[0];
 
 export default function PelangganPage() {
-  const [customers, setCustomers] = useState(initialCustomers);
+  const context = useContext(CustomerContext);
+  if (!context) {
+    throw new Error("PelangganPage must be used within a CustomerProvider");
+  }
+  const { customers, addCustomer, updateCustomer, deleteCustomer } = context;
+
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(
-    null
-  );
-  const [isAddDialogOpen, setAddDialogOpen] = useState(false);
+  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
+  const [isAddEditDialogOpen, setAddEditDialogOpen] = useState(false);
+  const [isDeleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const { toast } = useToast();
+
+  const form = useForm<CustomerFormValues>({
+    resolver: zodResolver(customerSchema),
+    defaultValues: {
+      name: "",
+      address: "",
+      contact: "",
+      email: "",
+    },
+  });
 
   const filteredCustomers = customers.filter((customer) =>
     customer.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
+  
+  const handleAddClick = () => {
+    setSelectedCustomer(null);
+    form.reset();
+    setAddEditDialogOpen(true);
+  };
+  
+  const handleEditClick = (customer: Customer) => {
+    setSelectedCustomer(customer);
+    form.reset(customer);
+    setAddEditDialogOpen(true);
+  };
+  
+  const handleDeleteClick = (customer: Customer) => {
+    setSelectedCustomer(customer);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleDeleteConfirm = () => {
+    if (selectedCustomer) {
+      deleteCustomer(selectedCustomer.id);
+      toast({
+        title: "Sukses",
+        description: `Pelanggan "${selectedCustomer.name}" berhasil dihapus.`,
+      });
+      setDeleteDialogOpen(false);
+      setSelectedCustomer(null);
+    }
+  };
+
+  const onSubmit = (data: CustomerFormValues) => {
+    if (selectedCustomer) {
+      updateCustomer(selectedCustomer.id, data);
+      toast({
+        title: "Sukses",
+        description: "Data pelanggan berhasil diperbarui.",
+      });
+    } else {
+      addCustomer(data);
+      toast({
+        title: "Sukses",
+        description: "Pelanggan baru berhasil ditambahkan.",
+      });
+    }
+    setAddEditDialogOpen(false);
+    setSelectedCustomer(null);
+  };
+
 
   return (
     <div className="space-y-8">
@@ -103,46 +153,70 @@ export default function PelangganPage() {
               />
             </div>
             <div className="flex gap-2">
-              <Dialog open={isAddDialogOpen} onOpenChange={setAddDialogOpen}>
+              <Dialog open={isAddEditDialogOpen} onOpenChange={setAddEditDialogOpen}>
                 <DialogTrigger asChild>
-                  <Button size="sm">
+                  <Button size="sm" onClick={handleAddClick}>
                     <PlusCircle className="mr-2 h-4 w-4" />
                     Tambah Pelanggan
                   </Button>
                 </DialogTrigger>
                 <DialogContent className="sm:max-w-[425px]">
-                  <DialogHeader>
-                    <DialogTitle>Tambah Pelanggan Baru</DialogTitle>
-                  </DialogHeader>
-                  <div className="grid gap-4 py-4">
-                    <div className="grid grid-cols-4 items-center gap-4">
-                      <Label htmlFor="customer_name" className="text-right">
-                        Nama
-                      </Label>
-                      <Input id="customer_name" className="col-span-3" />
-                    </div>
-                    <div className="grid grid-cols-4 items-center gap-4">
-                      <Label htmlFor="customer_address" className="text-right">
-                        Alamat
-                      </Label>
-                      <Textarea id="customer_address" className="col-span-3" />
-                    </div>
-                    <div className="grid grid-cols-4 items-center gap-4">
-                      <Label htmlFor="customer_contact" className="text-right">
-                        Kontak
-                      </Label>
-                      <Input id="customer_contact" className="col-span-3" />
-                    </div>
-                    <div className="grid grid-cols-4 items-center gap-4">
-                      <Label htmlFor="customer_email" className="text-right">
-                        Email
-                      </Label>
-                      <Input id="customer_email" type="email" className="col-span-3" />
-                    </div>
-                  </div>
-                  <DialogFooter>
-                    <Button type="submit">Simpan</Button>
-                  </DialogFooter>
+                  <Form {...form}>
+                    <form onSubmit={form.handleSubmit(onSubmit)}>
+                      <DialogHeader>
+                        <DialogTitle>{selectedCustomer ? 'Edit Pelanggan' : 'Tambah Pelanggan Baru'}</DialogTitle>
+                      </DialogHeader>
+                      <div className="grid gap-4 py-4">
+                        <FormField
+                          control={form.control}
+                          name="name"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Nama</FormLabel>
+                              <FormControl><Input {...field} /></FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={form.control}
+                          name="address"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Alamat</FormLabel>
+                              <FormControl><Textarea {...field} /></FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={form.control}
+                          name="contact"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Kontak</FormLabel>
+                              <FormControl><Input {...field} /></FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                         <FormField
+                          control={form.control}
+                          name="email"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Email</FormLabel>
+                              <FormControl><Input type="email" {...field} /></FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+                      <DialogFooter>
+                        <Button type="submit">Simpan</Button>
+                      </DialogFooter>
+                    </form>
+                  </Form>
                 </DialogContent>
               </Dialog>
             </div>
@@ -169,27 +243,45 @@ export default function PelangganPage() {
                   <TableCell>{customer.contact}</TableCell>
                   <TableCell>{customer.email}</TableCell>
                   <TableCell>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button
-                          aria-haspopup="true"
-                          size="icon"
-                          variant="ghost"
-                        >
-                          <MoreHorizontal className="h-4 w-4" />
-                          <span className="sr-only">Toggle menu</span>
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuLabel>Aksi</DropdownMenuLabel>
-                        <DropdownMenuItem>
-                          <Edit className="mr-2 h-4 w-4" /> Edit
-                        </DropdownMenuItem>
-                        <DropdownMenuItem className="text-destructive">
-                          <Trash2 className="mr-2 h-4 w-4" /> Hapus
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                    <AlertDialog open={isDeleteDialogOpen && selectedCustomer?.id === customer.id} onOpenChange={setDeleteDialogOpen}>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            aria-haspopup="true"
+                            size="icon"
+                            variant="ghost"
+                          >
+                            <MoreHorizontal className="h-4 w-4" />
+                            <span className="sr-only">Toggle menu</span>
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuLabel>Aksi</DropdownMenuLabel>
+                          <DropdownMenuItem onSelect={() => handleEditClick(customer)}>
+                            <Edit className="mr-2 h-4 w-4" /> Edit
+                          </DropdownMenuItem>
+                          <AlertDialogTrigger asChild>
+                            <DropdownMenuItem onSelect={(e) => { e.preventDefault(); handleDeleteClick(customer) }} className="text-destructive">
+                              <Trash2 className="mr-2 h-4 w-4" /> Hapus
+                            </DropdownMenuItem>
+                           </AlertDialogTrigger>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                       <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Apakah Anda yakin?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Tindakan ini tidak dapat dibatalkan. Ini akan menghapus pelanggan "{selectedCustomer?.name}" secara permanen.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Batal</AlertDialogCancel>
+                            <AlertDialogAction onClick={handleDeleteConfirm} className="bg-destructive hover:bg-destructive/90">
+                              Ya, Hapus
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                       </AlertDialogContent>
+                    </AlertDialog>
                   </TableCell>
                 </TableRow>
               ))}
