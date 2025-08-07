@@ -52,7 +52,8 @@ const salesOrders = [
     id: "SO-001",
     date: "2024-05-20",
     customer: "PT Sejahtera Abadi",
-    products: "10x Nurse Call Unit",
+    productName: "Nurse Call Unit",
+    quantity: 10,
     total: 17500000,
     status: "Selesai",
   },
@@ -60,7 +61,8 @@ const salesOrders = [
     id: "SO-002",
     date: "2024-05-22",
     customer: "CV Maju Jaya",
-    products: "5x Digital Mosque Clock",
+    productName: "Digital Mosque Clock",
+    quantity: 5,
     total: 25000000,
     status: "Diproses",
   },
@@ -68,7 +70,8 @@ const salesOrders = [
     id: "SO-003",
     date: "2024-05-25",
     customer: "RS Harapan Bunda",
-    products: "7x Queuing Machine Display",
+    productName: "Queuing Machine Display",
+    quantity: 7,
     total: 8750000,
     status: "Baru",
   },
@@ -146,7 +149,8 @@ export default function PenjualanPage() {
                 <TableHead>Nomor SO</TableHead>
                 <TableHead>Tanggal</TableHead>
                 <TableHead>Pelanggan</TableHead>
-                <TableHead>Produk</TableHead>
+                <TableHead>Nama Produk</TableHead>
+                <TableHead>Jumlah</TableHead>
                 <TableHead>Total</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>
@@ -160,7 +164,8 @@ export default function PenjualanPage() {
                   <TableCell className="font-medium">{order.id}</TableCell>
                   <TableCell>{new Date(order.date).toLocaleDateString('id-ID')}</TableCell>
                   <TableCell>{order.customer}</TableCell>
-                   <TableCell>{order.products}</TableCell>
+                   <TableCell>{order.productName}</TableCell>
+                   <TableCell>{order.quantity}</TableCell>
                   <TableCell>{formatCurrency(order.total)}</TableCell>
                   <TableCell>
                     <Badge variant={getStatusVariant(order.status)}>{order.status}</Badge>
@@ -212,8 +217,12 @@ export default function PenjualanPage() {
                              <Input id="customer_edit" defaultValue={selectedOrder?.customer} className="col-span-3" />
                            </div>
                            <div className="grid grid-cols-4 items-center gap-4">
-                             <Label htmlFor="products_edit" className="text-right">Produk</Label>
-                             <Textarea id="products_edit" defaultValue={selectedOrder?.products} className="col-span-3" />
+                             <Label htmlFor="product_name_edit" className="text-right">Nama Produk</Label>
+                             <Input id="product_name_edit" defaultValue={selectedOrder?.productName} className="col-span-3" />
+                           </div>
+                            <div className="grid grid-cols-4 items-center gap-4">
+                             <Label htmlFor="quantity_edit" className="text-right">Jumlah</Label>
+                             <Input id="quantity_edit" type="number" defaultValue={selectedOrder?.quantity} className="col-span-3" />
                            </div>
                            <div className="grid grid-cols-4 items-center gap-4">
                              <Label htmlFor="total_edit" className="text-right">Total</Label>
