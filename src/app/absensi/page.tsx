@@ -273,7 +273,7 @@ export default function AbsensiPage() {
              <div className="w-full sm:w-auto">
                  <Dialog open={isAddDialogOpen} onOpenChange={setAddDialogOpen}>
                     <DialogTrigger asChild>
-                       <Button className="w-full">
+                       <Button>
                            <PlusCircle className="mr-2 h-4 w-4"/> Input Absensi Baru
                        </Button>
                     </DialogTrigger>
@@ -411,3 +411,5 @@ export default function AbsensiPage() {
     </div>
   );
 }
+
+    
