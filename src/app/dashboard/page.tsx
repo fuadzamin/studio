@@ -116,8 +116,7 @@ export default function DashboardPage() {
                 income: { label: "Income", color: "hsl(var(--chart-1))" },
                 expense: { label: "Expense", color: "hsl(var(--chart-2))" },
             }} className="h-[300px] w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                 <BarChart data={chartData}>
+              <BarChart accessibilityLayer data={chartData}>
                   <CartesianGrid vertical={false} />
                   <XAxis dataKey="month" tickLine={false} tickMargin={10} axisLine={false} />
                   <YAxis tickLine={false} axisLine={false} tickFormatter={(value) => `Rp ${Number(value) / 1000}k`}/>
@@ -125,7 +124,6 @@ export default function DashboardPage() {
                   <Bar dataKey="income" fill="var(--color-income)" radius={[4, 4, 0, 0]} />
                   <Bar dataKey="expense" fill="var(--color-expense)" radius={[4, 4, 0, 0]} />
                 </BarChart>
-              </ResponsiveContainer>
             </ChartContainer>
           </CardContent>
         </Card>

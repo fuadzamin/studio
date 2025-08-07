@@ -36,8 +36,7 @@ export default function LaporanPage() {
                 income: { label: "Pemasukan", color: "hsl(var(--chart-1))" },
                 expense: { label: "Pengeluaran", color: "hsl(var(--chart-2))" },
             }} className="h-[350px] w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                 <BarChart data={monthlyProfitLossData}>
+            <BarChart accessibilityLayer data={monthlyProfitLossData}>
                   <CartesianGrid vertical={false} />
                   <XAxis dataKey="month" tickLine={false} tickMargin={10} axisLine={false} />
                   <YAxis tickLine={false} axisLine={false} tickFormatter={(value) => `Rp${Number(value) / 1000000} Jt`}/>
@@ -54,7 +53,6 @@ export default function LaporanPage() {
                   <Bar dataKey="income" fill="var(--color-income)" radius={[4, 4, 0, 0]} name="Pemasukan" />
                   <Bar dataKey="expense" fill="var(--color-expense)" radius={[4, 4, 0, 0]} name="Pengeluaran" />
                 </BarChart>
-              </ResponsiveContainer>
             </ChartContainer>
         </CardContent>
       </Card>
