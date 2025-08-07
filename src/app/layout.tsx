@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import './globals.css';
 import { AppShell } from '@/components/app-shell';
 import { Toaster } from '@/components/ui/toaster';
+import { ProductProvider } from '@/contexts/ProductContext';
 
 export const metadata: Metadata = {
   title: 'ProFlow ERP',
@@ -24,7 +25,9 @@ export default function RootLayout({
         />
       </head>
       <body className="font-body antialiased">
-        <AppShell>{children}</AppShell>
+        <ProductProvider>
+          <AppShell>{children}</AppShell>
+        </ProductProvider>
         <Toaster />
       </body>
     </html>

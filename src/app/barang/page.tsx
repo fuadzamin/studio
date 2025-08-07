@@ -1,8 +1,7 @@
-
 "use client";
 
-import { useState } from "react";
-import { useForm, useFieldArray, Controller } from "react-hook-form";
+import { useState, useContext } from "react";
+import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import {
@@ -48,7 +47,6 @@ import {
   DialogFooter,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -70,87 +68,16 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
-
-
-const bomItemSchema = z.object({
-  materialName: z.string().min(1, "Nama material tidak boleh kosong"),
-  quantity: z.coerce.number().min(1, "Jumlah harus lebih dari 0"),
-  unit: z.string().min(1, "Satuan harus dipilih"),
-});
-
-const productSchema = z.object({
-  id: z.string().optional(),
-  name: z.string().min(1, "Nama produk tidak boleh kosong"),
-  code: z.string().min(1, "Kode produk tidak boleh kosong"),
-  purchasePrice: z.coerce.number().positive("Harga pokok harus positif"),
-  salePrice: z.coerce.number().positive("Harga jual harus positif"),
-  unit: z.string().min(1, "Satuan harus dipilih"),
-  bom: z.array(bomItemSchema),
-});
-
-type ProductFormValues = z.infer<typeof productSchema>;
-type Product = ProductFormValues & { id: string };
-
-
-const initialProducts: Product[] = [
-  {
-    id: "1",
-    name: "Nurse Call Unit",
-    code: "NC001",
-    purchasePrice: 1500000,
-    salePrice: 1750000,
-    unit: "pcs",
-    bom: [
-        { materialName: "Mainboard V1.2", quantity: 1, unit: "pcs" },
-        { materialName: "Casing Box", quantity: 1, unit: "pcs" },
-        { materialName: "Kabel Power", quantity: 1, unit: "meter" },
-    ]
-  },
-  {
-    id: "2",
-    name: "Digital Mosque Clock",
-    code: "JDM01",
-    purchasePrice: 2000000,
-    salePrice: 2500000,
-    unit: "pcs",
-     bom: [
-        { materialName: "Panel P10", quantity: 6, unit: "pcs" },
-        { materialName: "Controller JWS", quantity: 1, unit: "pcs" },
-        { materialName: "Power Supply 5V", quantity: 1, unit: "pcs" },
-    ]
-  },
-  {
-    id: "3",
-    name: "Queuing Machine Display",
-    code: "QM003",
-    purchasePrice: 800000,
-    salePrice: 1000000,
-    unit: "pcs",
-    bom: []
-  },
-  {
-    id: "4",
-    name: "LED Running Text Board",
-    code: "LED-R-5M",
-    purchasePrice: 500000,
-    salePrice: 650000,
-    unit: "roll",
-    bom: []
-  },
-   {
-    id: "5",
-    name: "Power Supply 12V 5A",
-    code: "PSU-12-5",
-    purchasePrice: 75000,
-    salePrice: 100000,
-    unit: "pcs",
-    bom: []
-  },
-];
+import { ProductContext, Product, ProductFormValues, productSchema } from "@/contexts/ProductContext";
 
 
 export default function BarangPage() {
-  const [products, setProducts] = useState(initialProducts);
+  const context = useContext(ProductContext);
+  if (!context) {
+    throw new Error("BarangPage must be used within a ProductProvider");
+  }
+  const { products, addProduct, updateProduct, deleteProduct } = context;
+
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
 
@@ -207,7 +134,7 @@ export default function BarangPage() {
 
   const handleDeleteConfirm = () => {
     if (selectedProduct) {
-        setProducts(products.filter(p => p.id !== selectedProduct.id));
+        deleteProduct(selectedProduct.id);
         toast({
             title: "Sukses",
             description: `Produk "${selectedProduct.name}" berhasil dihapus.`,
@@ -227,16 +154,13 @@ export default function BarangPage() {
     }
     
     if (isEditing && selectedProduct) {
-      // Edit
-      setProducts(products.map(p => p.id === selectedProduct.id ? { ...data, id: p.id } : p));
+      updateProduct(selectedProduct.id, data);
       toast({
         title: "Sukses",
         description: "Produk berhasil diperbarui.",
       });
     } else {
-      // Add
-      const newProduct: Product = { ...data, id: (products.length + 1).toString() };
-      setProducts([...products, newProduct]);
+      addProduct(data);
        toast({
         title: "Sukses",
         description: "Produk baru berhasil ditambahkan.",

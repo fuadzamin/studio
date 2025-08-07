@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
-import { PlusCircle, Search } from "lucide-react";
+import { useState, useContext } from "react";
+import { PlusCircle } from "lucide-react";
+import { ProductContext } from "@/contexts/ProductContext";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -11,7 +12,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -27,36 +27,19 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
-
-const productsWithBom = [
-    { 
-        id: "1", 
-        productName: "Nurse Call Unit", 
-        productCode: "NC001",
-        bom: [
-            { materialName: "Mainboard V1.2", quantity: 1, unit: "pcs" },
-            { materialName: "Casing Box", quantity: 1, unit: "pcs" },
-            { materialName: "Kabel Power", quantity: 1, unit: "meter" },
-        ]
-    },
-    { 
-        id: "2", 
-        productName: "Digital Mosque Clock", 
-        productCode: "JDM01",
-        bom: [
-            { materialName: "Panel P10", quantity: 6, unit: "pcs" },
-            { materialName: "Controller JWS", quantity: 1, unit: "pcs" },
-            { materialName: "Power Supply 5V", quantity: 1, unit: "pcs" },
-        ]
-    },
-];
 
 export default function ProduksiPage() {
-  const [selectedProduct, setSelectedProduct] = useState<string | null>(null);
+  const context = useContext(ProductContext);
+  if (!context) {
+    throw new Error("ProduksiPage must be used within a ProductProvider");
+  }
+  const { products } = context;
+  const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
 
-  const displayBom = selectedProduct 
-    ? productsWithBom.find(p => p.id === selectedProduct)?.bom || []
+  const productsWithBom = products.filter(p => p.bom && p.bom.length > 0);
+
+  const displayBom = selectedProductId
+    ? products.find(p => p.id === selectedProductId)?.bom || []
     : [];
 
   return (
@@ -76,25 +59,25 @@ export default function ProduksiPage() {
           </CardDescription>
              <div className="flex items-center justify-between pt-4">
                 <div className="w-full max-w-sm">
-                     <Select onValueChange={setSelectedProduct}>
+                     <Select onValueChange={setSelectedProductId}>
                         <SelectTrigger>
                           <SelectValue placeholder="Pilih produk..." />
                         </SelectTrigger>
                         <SelectContent>
                           {productsWithBom.map(p => (
-                            <SelectItem key={p.id} value={p.id}>{p.productName} ({p.productCode})</SelectItem>
+                            <SelectItem key={p.id} value={p.id}>{p.name} ({p.code})</SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
                 </div>
-                 <Button size="sm">
+                 <Button size="sm" disabled>
                     <PlusCircle className="mr-2 h-4 w-4" />
                     Buat BOM Baru
                   </Button>
             </div>
         </CardHeader>
         <CardContent>
-             {selectedProduct ? (
+             {selectedProductId ? (
                 <Table>
                     <TableHeader>
                     <TableRow>
