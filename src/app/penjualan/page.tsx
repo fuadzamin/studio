@@ -2,7 +2,7 @@
 "use client"
 
 import { useState, useContext, useMemo } from "react"
-import { MoreHorizontal, PlusCircle, Search, FileText, Send, Edit, Calendar as CalendarIcon, Package, User, ShoppingCart, Banknote } from "lucide-react"
+import { MoreHorizontal, PlusCircle, Search, FileText, Send, Edit, Calendar as CalendarIcon, Package, User, Banknote } from "lucide-react"
 import { DateRange } from "react-day-picker"
 import { format, startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfYear, endOfYear, isWithinInterval, parseISO } from "date-fns"
 
@@ -37,7 +37,6 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogDescription,
   DialogFooter,
   DialogTrigger,
 } from "@/components/ui/dialog"
@@ -59,59 +58,30 @@ import { ProductContext } from "@/contexts/ProductContext"
 import { CustomerContext } from "@/contexts/CustomerContext"
 import { useToast } from "@/hooks/use-toast"
 import { cn } from "@/lib/utils"
+import { SalesOrderContext, SalesOrder } from "@/contexts/SalesOrderContext"
 
-
-const initialSalesOrders = [
-  {
-    id: "SO-001",
-    date: "2024-05-20",
-    customer: "PT Sejahtera Abadi",
-    productName: "Nurse Call Unit",
-    quantity: 10,
-    total: 17500000,
-    status: "Selesai",
-  },
-  {
-    id: "SO-002",
-    date: "2024-05-22",
-    customer: "CV Maju Jaya",
-    productName: "Digital Mosque Clock",
-    quantity: 5,
-    total: 25000000,
-    status: "Diproses",
-  },
-  {
-    id: "SO-003",
-    date: "2024-05-25",
-    customer: "RS Harapan Bunda",
-    productName: "Queuing Machine Display",
-    quantity: 7,
-    total: 8750000,
-    status: "Baru",
-  },
-];
-
-type Order = typeof initialSalesOrders[0];
 
 export default function PenjualanPage() {
-  const [salesOrders, setSalesOrders] = useState(initialSalesOrders);
+  const salesOrderContext = useContext(SalesOrderContext);
+  const productContext = useContext(ProductContext);
+  const customerContext = useContext(CustomerContext);
+  
   const [searchTerm, setSearchTerm] = useState("")
   const [isEditDialogOpen, setEditDialogOpen] = useState(false);
   const [isAddDialogOpen, setAddDialogOpen] = useState(false);
-  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+  const [selectedOrder, setSelectedOrder] = useState<SalesOrder | null>(null);
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
 
-  const productContext = useContext(ProductContext);
-  const customerContext = useContext(CustomerContext);
-
-  if (!productContext || !customerContext) {
-    throw new Error("PenjualanPage must be used within a ProductProvider and CustomerProvider");
+  if (!salesOrderContext || !productContext || !customerContext) {
+    throw new Error("PenjualanPage must be used within necessary Providers");
   }
+
+  const { salesOrders, addSalesOrder, updateSalesOrder } = salesOrderContext;
   const { products } = productContext;
   const { customers, addCustomer } = customerContext;
   const { toast } = useToast();
 
-  const handleEditClick = (order: Order) => {
+  const handleEditClick = (order: SalesOrder) => {
     setSelectedOrder(order);
     setEditDialogOpen(true);
   };
@@ -136,8 +106,7 @@ export default function PenjualanPage() {
       });
     }
 
-    const newOrder: Order = {
-      id: `SO-${String(salesOrders.length + 1).padStart(3, '0')}`,
+    const newOrderData = {
       date: new Date().toISOString().split('T')[0],
       customer: customerName,
       productName: formData.get("productName") as string,
@@ -146,7 +115,8 @@ export default function PenjualanPage() {
       status: "Baru",
     };
     
-    setSalesOrders(prevOrders => [newOrder, ...prevOrders]);
+    addSalesOrder(newOrderData);
+
     toast({
         title: "Sukses!",
         description: "Pesanan penjualan baru berhasil dibuat.",
@@ -188,7 +158,7 @@ export default function PenjualanPage() {
         });
     }
     
-    return filtered;
+    return filtered.sort((a,b) => parseISO(b.date).getTime() - parseISO(a.date).getTime());
   }, [salesOrders, searchTerm, dateRange]);
 
 

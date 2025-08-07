@@ -7,6 +7,7 @@ import { ProductProvider } from '@/contexts/ProductContext';
 import { MaterialProvider } from '@/contexts/MaterialContext';
 import { CustomerProvider } from '@/contexts/CustomerContext';
 import { EmployeeProvider } from '@/contexts/EmployeeContext';
+import { SalesOrderProvider } from '@/contexts/SalesOrderContext';
 
 export const metadata: Metadata = {
   title: 'ProFlow ERP',
@@ -29,15 +30,17 @@ export default function RootLayout({
         />
       </head>
       <body className="font-body antialiased" suppressHydrationWarning>
-        <EmployeeProvider>
-            <ProductProvider>
-            <MaterialProvider>
-                <CustomerProvider>
-                <AppShell>{children}</AppShell>
-                </CustomerProvider>
-            </MaterialProvider>
-            </ProductProvider>
-        </EmployeeProvider>
+        <SalesOrderProvider>
+          <EmployeeProvider>
+              <ProductProvider>
+              <MaterialProvider>
+                  <CustomerProvider>
+                  <AppShell>{children}</AppShell>
+                  </CustomerProvider>
+              </MaterialProvider>
+              </ProductProvider>
+          </EmployeeProvider>
+        </SalesOrderProvider>
         <Toaster />
       </body>
     </html>

@@ -9,22 +9,16 @@ import { ChartContainer, ChartTooltipContent } from "@/components/ui/chart";
 import { useContext, useState, useMemo } from "react";
 import { ProductContext } from "@/contexts/ProductContext";
 import { MaterialContext } from "@/contexts/MaterialContext";
+import { SalesOrderContext } from "@/contexts/SalesOrderContext";
 import { DateRange } from "react-day-picker";
 import { format, startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfYear, endOfYear, eachDayOfInterval, isWithinInterval, parseISO } from "date-fns";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { CustomerContext } from "@/contexts/CustomerContext";
 import { Calendar } from "@/components/ui/calendar";
 
-const salesData = [
-  { date: "2024-01-15", income: 45000, expense: 22000, newCustomers: 1, newOrders: 2 },
-  { date: "2024-02-10", income: 48000, expense: 25000, newCustomers: 2, newOrders: 3 },
-  { date: "2024-03-20", income: 52000, expense: 28000, newCustomers: 3, newOrders: 4 },
-  { date: "2024-04-05", income: 55000, expense: 30000, newCustomers: 1, newOrders: 5 },
-  { date: "2024-05-12", income: 58000, expense: 32000, newCustomers: 4, newOrders: 6 },
-  { date: "2024-06-28", income: 61000, expense: 35000, newCustomers: 1, newOrders: 15 },
-];
 
 const chartDataMonthly = [
   { month: "Jan", income: 45000, expense: 22000 },
@@ -39,17 +33,22 @@ const chartDataMonthly = [
 export default function DashboardPage() {
   const productContext = useContext(ProductContext);
   const materialContext = useContext(MaterialContext);
+  const salesOrderContext = useContext(SalesOrderContext);
+  const customerContext = useContext(CustomerContext);
+
   const [dateRange, setDateRange] = useState<DateRange | undefined>({
       from: startOfMonth(new Date()),
       to: endOfMonth(new Date()),
   });
 
-  if (!productContext || !materialContext) {
+  if (!productContext || !materialContext || !salesOrderContext || !customerContext) {
     return <div>Loading...</div>; 
   }
 
   const { products } = productContext;
   const { materials } = materialContext;
+  const { salesOrders } = salesOrderContext;
+  const { customers } = customerContext;
 
   const handlePresetFilterChange = (value: string) => {
     const now = new Date();
@@ -83,29 +82,44 @@ export default function DashboardPage() {
     }
     const toDate = dateRange.to ? endOfDay(dateRange.to) : endOfDay(dateRange.from);
     
-    const dataInRage = salesData.filter(d => isWithinInterval(parseISO(d.date), { start: startOfDay(dateRange.from!), end: toDate }));
+    const ordersInRange = salesOrders.filter(d => isWithinInterval(parseISO(d.date), { start: startOfDay(dateRange.from!), end: toDate }));
     
-    const summary = dataInRage.reduce((acc, curr) => {
-        acc.totalSales += curr.income;
-        acc.totalProfit += (curr.income - curr.expense);
-        acc.newCustomers += curr.newCustomers;
-        acc.newOrders += curr.newOrders;
+    const summary = ordersInRange.reduce((acc, order) => {
+        acc.totalSales += order.total;
+        const product = products.find(p => p.name === order.productName);
+        const cost = product ? product.purchasePrice * order.quantity : 0;
+        acc.totalProfit += (order.total - cost);
         return acc;
-    }, { totalSales: 0, totalProfit: 0, newCustomers: 0, newOrders: 0});
+    }, { totalSales: 0, totalProfit: 0 });
+
+    const newCustomersInRange = customers.filter(c => c.id.startsWith('cust_') && isWithinInterval(new Date(parseInt(c.id.split('_')[1])), { start: startOfDay(dateRange.from!), end: toDate })).length;
+
 
     const dailyChartData = eachDayOfInterval({ start: startOfDay(dateRange.from), end: toDate }).map(day => {
         const dayStr = format(day, 'yyyy-MM-dd');
-        const dataForDay = salesData.find(d => d.date === dayStr);
+        const ordersForDay = salesOrders.filter(d => d.date === dayStr);
+        const income = ordersForDay.reduce((sum, order) => sum + order.total, 0);
+        const expense = ordersForDay.reduce((sum, order) => {
+            const product = products.find(p => p.name === order.productName);
+            const cost = product ? product.purchasePrice * order.quantity : 0;
+            return sum + cost;
+        }, 0);
+
         return {
             date: format(day, 'dd/MM'),
-            income: dataForDay?.income || 0,
-            expense: dataForDay?.expense || 0,
+            income: income,
+            expense: expense,
         }
     });
 
-    return { ...summary, chartData: dailyChartData };
+    return { 
+        ...summary, 
+        newOrders: ordersInRange.length,
+        newCustomers: newCustomersInRange,
+        chartData: dailyChartData,
+    };
 
-  }, [dateRange]);
+  }, [dateRange, salesOrders, products, customers]);
 
   const productionPotential = products
     .filter(p => p.bom && p.bom.length > 0)
@@ -246,7 +260,8 @@ export default function DashboardPage() {
                 income: { label: "Income", color: "hsl(var(--chart-1))" },
                 expense: { label: "Expense", color: "hsl(var(--chart-2))" },
             }} className="h-[300px] w-full">
-              <BarChart accessibilityLayer data={dateRange ? filteredData.chartData : chartDataMonthly}>
+               <div className="h-full w-full">
+                 <BarChart accessibilityLayer data={dateRange ? filteredData.chartData : chartDataMonthly}>
                   <CartesianGrid vertical={false} />
                   <XAxis dataKey={dateRange ? "date" : "month"} tickLine={false} tickMargin={10} axisLine={false} />
                   <YAxis tickLine={false} axisLine={false} tickFormatter={(value) => `Rp ${Number(value) / 1000}k`}/>
@@ -254,6 +269,7 @@ export default function DashboardPage() {
                   <Bar dataKey="income" fill="var(--color-income)" radius={[4, 4, 0, 0]} />
                   <Bar dataKey="expense" fill="var(--color-expense)" radius={[4, 4, 0, 0]} />
                 </BarChart>
+               </div>
             </ChartContainer>
           </CardContent>
         </Card>
