@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useContext } from "react"
 import { MoreHorizontal, PlusCircle, Search, FileText, Send, Edit } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
@@ -46,8 +46,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { ProductContext } from "@/contexts/ProductContext"
+import { useToast } from "@/hooks/use-toast"
 
-const salesOrders = [
+
+const initialSalesOrders = [
   {
     id: "SO-001",
     date: "2024-05-20",
@@ -77,17 +80,48 @@ const salesOrders = [
   },
 ];
 
-type Order = typeof salesOrders[0];
+type Order = typeof initialSalesOrders[0];
 
 export default function PenjualanPage() {
+  const [salesOrders, setSalesOrders] = useState(initialSalesOrders);
   const [searchTerm, setSearchTerm] = useState("")
   const [isEditDialogOpen, setEditDialogOpen] = useState(false);
+  const [isAddDialogOpen, setAddDialogOpen] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+
+  const productContext = useContext(ProductContext);
+  if (!productContext) {
+    throw new Error("PenjualanPage must be used within a ProductProvider");
+  }
+  const { products } = productContext;
+  const { toast } = useToast();
 
   const handleEditClick = (order: Order) => {
     setSelectedOrder(order);
     setEditDialogOpen(true);
   };
+  
+  const handleCreateOrder = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const formData = new FormData(event.currentTarget);
+    const newOrder: Order = {
+      id: `SO-${String(salesOrders.length + 1).padStart(3, '0')}`,
+      date: new Date().toISOString().split('T')[0],
+      customer: formData.get("customer") as string,
+      productName: formData.get("productName") as string,
+      quantity: Number(formData.get("quantity")),
+      total: Number(formData.get("total")),
+      status: "Baru",
+    };
+    
+    setSalesOrders(prevOrders => [...prevOrders, newOrder]);
+    toast({
+        title: "Sukses!",
+        description: "Pesanan penjualan baru berhasil dibuat.",
+    });
+    setAddDialogOpen(false);
+  };
+
 
   const getStatusVariant = (status: string) => {
     switch (status) {
@@ -136,10 +170,59 @@ export default function PenjualanPage() {
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
             </div>
-            <Button size="sm">
-              <PlusCircle className="mr-2 h-4 w-4" />
-              Buat Pesanan Baru
-            </Button>
+             <Dialog open={isAddDialogOpen} onOpenChange={setAddDialogOpen}>
+                <DialogTrigger asChild>
+                    <Button size="sm">
+                        <PlusCircle className="mr-2 h-4 w-4" />
+                        Buat Pesanan Baru
+                    </Button>
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-lg">
+                    <DialogHeader>
+                        <DialogTitle>Buat Pesanan Penjualan Baru</DialogTitle>
+                    </DialogHeader>
+                    <form onSubmit={handleCreateOrder}>
+                        <div className="grid gap-4 py-4">
+                            <div className="grid grid-cols-4 items-center gap-4">
+                                <Label htmlFor="so_id" className="text-right">Nomor SO</Label>
+                                <Input id="so_id" value={`SO-${String(salesOrders.length + 1).padStart(3, '0')}`} className="col-span-3" disabled />
+                            </div>
+                             <div className="grid grid-cols-4 items-center gap-4">
+                                <Label htmlFor="date" className="text-right">Tanggal</Label>
+                                <Input id="date" type="date" defaultValue={new Date().toISOString().split('T')[0]} className="col-span-3" />
+                            </div>
+                            <div className="grid grid-cols-4 items-center gap-4">
+                                <Label htmlFor="customer" className="text-right">Pelanggan</Label>
+                                <Input id="customer" name="customer" placeholder="Nama pelanggan" className="col-span-3" required/>
+                            </div>
+                             <div className="grid grid-cols-4 items-center gap-4">
+                                <Label htmlFor="productName" className="text-right">Produk</Label>
+                                <Select name="productName">
+                                    <SelectTrigger className="col-span-3">
+                                        <SelectValue placeholder="Pilih produk" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {products.map(product => (
+                                            <SelectItem key={product.id} value={product.name}>{product.name}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                             <div className="grid grid-cols-4 items-center gap-4">
+                                <Label htmlFor="quantity" className="text-right">Jumlah</Label>
+                                <Input id="quantity" name="quantity" type="number" placeholder="0" className="col-span-3" required/>
+                            </div>
+                            <div className="grid grid-cols-4 items-center gap-4">
+                                <Label htmlFor="total" className="text-right">Total Harga</Label>
+                                <Input id="total" name="total" type="number" placeholder="Rp 0" className="col-span-3" required/>
+                            </div>
+                        </div>
+                        <DialogFooter>
+                            <Button type="submit">Simpan Pesanan</Button>
+                        </DialogFooter>
+                    </form>
+                </DialogContent>
+            </Dialog>
           </div>
         </CardHeader>
         <CardContent>
