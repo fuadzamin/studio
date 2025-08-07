@@ -99,7 +99,7 @@ export const ProductProvider = ({ children }: { children: ReactNode }) => {
   const addProduct = (productData: ProductFormValues) => {
     const newProduct: Product = {
       ...productData,
-      id: (products.length + 1).toString(), 
+      id: `prod_${new Date().getTime()}_${Math.random()}`,
     };
     setProducts(prevProducts => [...prevProducts, newProduct]);
   };
