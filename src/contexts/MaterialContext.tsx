@@ -60,7 +60,7 @@ export const MaterialProvider = ({ children }: { children: ReactNode }) => {
     setMaterials(prev => prev.filter(m => m.id !== materialId));
   };
   
-  const addStock = useCallback((materialName: string, quantity: number, unit: string) => {
+  const addStock = (materialName: string, quantity: number, unit: string) => {
     setMaterials(prev => {
         const existingMaterial = prev.find(m => m.name === materialName);
         if (existingMaterial) {
@@ -81,7 +81,7 @@ export const MaterialProvider = ({ children }: { children: ReactNode }) => {
             return [...prev, newMaterial];
         }
     });
-  }, []);
+  };
 
   return (
     <MaterialContext.Provider value={{ materials, addMaterial, updateMaterial, deleteMaterial, addStock }}>
