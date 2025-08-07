@@ -16,6 +16,7 @@ export const productSchema = z.object({
   code: z.string().min(1, "Kode produk tidak boleh kosong"),
   purchasePrice: z.coerce.number().positive("Harga pokok harus positif"),
   salePrice: z.coerce.number().positive("Harga jual harus positif"),
+  stock: z.coerce.number().min(0, "Stok tidak boleh negatif"),
   unit: z.string().min(1, "Satuan harus dipilih"),
   bom: z.array(bomItemSchema),
 });
@@ -32,6 +33,7 @@ const initialProducts: Product[] = [
     code: "NC001",
     purchasePrice: 1500000,
     salePrice: 1750000,
+    stock: 15,
     unit: "pcs",
     bom: [
         { materialName: "Mainboard V1.2", quantity: 1, unit: "pcs" },
@@ -45,6 +47,7 @@ const initialProducts: Product[] = [
     code: "JDM01",
     purchasePrice: 2000000,
     salePrice: 2500000,
+    stock: 8,
     unit: "pcs",
      bom: [
         { materialName: "Panel P10", quantity: 6, unit: "pcs" },
@@ -58,6 +61,7 @@ const initialProducts: Product[] = [
     code: "QM003",
     purchasePrice: 800000,
     salePrice: 1000000,
+    stock: 20,
     unit: "pcs",
     bom: []
   },
@@ -67,6 +71,7 @@ const initialProducts: Product[] = [
     code: "LED-R-5M",
     purchasePrice: 500000,
     salePrice: 650000,
+    stock: 5,
     unit: "roll",
     bom: []
   },
@@ -76,6 +81,7 @@ const initialProducts: Product[] = [
     code: "PSU-12-5",
     purchasePrice: 75000,
     salePrice: 100000,
+    stock: 50,
     unit: "pcs",
     bom: []
   },
@@ -86,7 +92,7 @@ const initialProducts: Product[] = [
 interface ProductContextType {
   products: Product[];
   addProduct: (productData: ProductFormValues) => void;
-  updateProduct: (productId: string, productData: ProductFormValues) => void;
+  updateProduct: (productId: string, productData: Partial<ProductFormValues>) => void;
   deleteProduct: (productId: string) => void;
 }
 
@@ -99,12 +105,12 @@ export const ProductProvider = ({ children }: { children: ReactNode }) => {
   const addProduct = (productData: ProductFormValues) => {
     const newProduct: Product = {
       ...productData,
-      id: `prod_${new Date().getTime()}_${Math.random()}`,
+      id: `prod_${new Date().getTime()}_${Math.random().toString(36).substring(7)}`,
     };
     setProducts(prevProducts => [...prevProducts, newProduct]);
   };
 
-  const updateProduct = (productId: string, productData: ProductFormValues) => {
+  const updateProduct = (productId: string, productData: Partial<ProductFormValues>) => {
     setProducts(prevProducts =>
       prevProducts.map(p =>
         p.id === productId ? { ...p, ...productData, id: p.id } : p

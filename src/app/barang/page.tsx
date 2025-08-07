@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useContext } from "react";
+import { useState, useContext, useEffect } from "react";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -12,6 +12,7 @@ import {
   Trash2,
   Edit,
   MinusCircle,
+  Package,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -36,6 +37,7 @@ import {
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuTrigger,
+  DropdownMenuSeparator
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import {
@@ -69,6 +71,13 @@ import { Separator } from "@/components/ui/separator";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
 import { ProductContext, Product, ProductFormValues, productSchema } from "@/contexts/ProductContext";
+import { Badge } from "@/components/ui/badge";
+
+const stockFormSchema = z.object({
+  stock: z.coerce.number().min(0, "Stok tidak boleh negatif."),
+});
+
+type StockFormValues = z.infer<typeof stockFormSchema>;
 
 
 export default function BarangPage() {
@@ -82,7 +91,9 @@ export default function BarangPage() {
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
 
   const [isAddEditDialogOpen, setAddEditDialogOpen] = useState(false);
+  const [isStockDialogOpen, setStockDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  
   const { toast } = useToast();
 
   const form = useForm<ProductFormValues>({
@@ -92,8 +103,16 @@ export default function BarangPage() {
       code: "",
       purchasePrice: 0,
       salePrice: 0,
+      stock: 0,
       unit: "",
       bom: [],
+    },
+  });
+
+  const stockForm = useForm<StockFormValues>({
+    resolver: zodResolver(stockFormSchema),
+    defaultValues: {
+      stock: 0,
     },
   });
 
@@ -101,6 +120,12 @@ export default function BarangPage() {
     control: form.control,
     name: "bom",
   });
+
+   useEffect(() => {
+    if (selectedProduct) {
+      stockForm.reset({ stock: selectedProduct.stock });
+    }
+  }, [selectedProduct, stockForm]);
 
   const filteredProducts = products.filter(
     (product) =>
@@ -113,6 +138,11 @@ export default function BarangPage() {
     form.reset(product);
     setAddEditDialogOpen(true);
   };
+  
+  const handleStockClick = (product: Product) => {
+    setSelectedProduct(product);
+    setStockDialogOpen(true);
+  };
 
   const handleAddClick = () => {
     setSelectedProduct(null);
@@ -121,6 +151,7 @@ export default function BarangPage() {
       code: "",
       purchasePrice: 0,
       salePrice: 0,
+      stock: 0,
       unit: "",
       bom: [],
     });
@@ -170,19 +201,32 @@ export default function BarangPage() {
     setSelectedProduct(null);
   };
 
+  const onStockSubmit = (data: StockFormValues) => {
+    if (selectedProduct) {
+      updateProduct(selectedProduct.id, { stock: data.stock });
+      toast({
+        title: "Sukses",
+        description: `Stok untuk "${selectedProduct.name}" berhasil diperbarui.`,
+      });
+      setStockDialogOpen(false);
+      setSelectedProduct(null);
+    }
+  };
+
+
   return (
     <div className="space-y-8">
        <div>
         <h1 className="text-3xl font-bold">Manajemen Produk</h1>
         <p className="text-muted-foreground mt-2">
-          Tambah, edit, dan hapus produk (build-to-order) beserta Bill of Materials-nya.
+          Tambah, edit, dan kelola produk beserta stok dan Bill of Materials-nya.
         </p>
       </div>
       <Card>
         <CardHeader>
           <CardTitle>Daftar Produk</CardTitle>
           <CardDescription>
-            Kelola produk Anda yang dibuat berdasarkan pesanan.
+            Kelola semua produk Anda di sini.
           </CardDescription>
           <div className="flex items-center justify-between pt-4">
             <div className="relative w-full max-w-sm">
@@ -214,7 +258,7 @@ export default function BarangPage() {
                 <TableHead>Nama Produk</TableHead>
                 <TableHead>Kode</TableHead>
                 <TableHead>Harga Jual</TableHead>
-                <TableHead>Satuan</TableHead>
+                <TableHead>Stok</TableHead>
                 <TableHead>
                   <span className="sr-only">Aksi</span>
                 </TableHead>
@@ -233,7 +277,9 @@ export default function BarangPage() {
                     }).format(product.salePrice)}
                   </TableCell>
                   <TableCell>
-                    {product.unit}
+                     <Badge variant={product.stock > 5 ? 'default' : 'destructive'}>
+                        {product.stock} {product.unit}
+                     </Badge>
                   </TableCell>
                   <TableCell>
                       <AlertDialog open={isDeleteDialogOpen && selectedProduct?.id === product.id} onOpenChange={setDeleteDialogOpen}>
@@ -246,9 +292,13 @@ export default function BarangPage() {
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
                             <DropdownMenuLabel>Aksi</DropdownMenuLabel>
-                                <DropdownMenuItem onSelect={() => handleEditClick(product)}>
-                                    <Edit className="mr-2 h-4 w-4" /> Edit
-                                </DropdownMenuItem>
+                             <DropdownMenuItem onSelect={() => handleEditClick(product)}>
+                                <Edit className="mr-2 h-4 w-4" /> Edit Detail
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onSelect={() => handleStockClick(product)}>
+                                <Package className="mr-2 h-4 w-4" /> Ubah Stok
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
                              <AlertDialogTrigger asChild>
                                 <DropdownMenuItem onSelect={(e) => { e.preventDefault(); handleDeleteClick(product); }} className="text-destructive">
                                     <Trash2 className="mr-2 h-4 w-4" /> Hapus
@@ -277,8 +327,10 @@ export default function BarangPage() {
               ))}
             </TableBody>
           </Table>
+
+           {/* Add/Edit Product Dialog */}
            <Dialog open={isAddEditDialogOpen} onOpenChange={setAddEditDialogOpen}>
-            <DialogContent className="sm:max-w-xl">
+            <DialogContent className="sm:max-w-2xl">
                  <Form {...form}>
                     <form onSubmit={form.handleSubmit(onSubmit)}>
                         <DialogHeader>
@@ -287,18 +339,18 @@ export default function BarangPage() {
                             {selectedProduct ? 'Ubah detail produk dan komponen Bill of Materials (BOM) di bawah ini.' : 'Isi detail produk baru dan komponen Bill of Materials (BOM) di bawah ini.'}
                         </DialogDescription>
                         </DialogHeader>
-                        <div className="grid gap-4 py-4 max-h-[70vh] overflow-y-auto pr-6">
-                            <div className="space-y-4">
+                        <div className="grid gap-6 py-4 max-h-[70vh] overflow-y-auto pr-6">
+                            <div className="grid grid-cols-2 gap-4">
                                 <FormField
                                 control={form.control}
                                 name="name"
                                 render={({ field }) => (
-                                    <FormItem className="grid grid-cols-4 items-center gap-4">
-                                    <FormLabel className="text-right">Nama</FormLabel>
+                                    <FormItem>
+                                    <FormLabel>Nama Produk</FormLabel>
                                     <FormControl>
-                                        <Input className="col-span-3" {...field} />
+                                        <Input {...field} />
                                     </FormControl>
-                                    <FormMessage className="col-span-4 text-right" />
+                                    <FormMessage />
                                     </FormItem>
                                 )}
                                 />
@@ -306,25 +358,25 @@ export default function BarangPage() {
                                 control={form.control}
                                 name="code"
                                 render={({ field }) => (
-                                    <FormItem className="grid grid-cols-4 items-center gap-4">
-                                    <FormLabel className="text-right">Kode</FormLabel>
+                                    <FormItem>
+                                    <FormLabel>Kode Produk</FormLabel>
                                     <FormControl>
-                                        <Input className="col-span-3" {...field} disabled={!!selectedProduct} />
+                                        <Input {...field} disabled={!!selectedProduct} />
                                     </FormControl>
-                                    <FormMessage className="col-span-4 text-right" />
+                                    <FormMessage />
                                     </FormItem>
                                 )}
                                 />
-                                <FormField
+                                 <FormField
                                 control={form.control}
                                 name="purchasePrice"
                                 render={({ field }) => (
-                                    <FormItem className="grid grid-cols-4 items-center gap-4">
-                                    <FormLabel className="text-right">Harga Pokok</FormLabel>
+                                    <FormItem>
+                                    <FormLabel>Harga Pokok</FormLabel>
                                     <FormControl>
-                                        <Input type="number" className="col-span-3" {...field} />
+                                        <Input type="number" {...field} />
                                     </FormControl>
-                                    <FormMessage className="col-span-4 text-right" />
+                                    <FormMessage />
                                     </FormItem>
                                 )}
                                 />
@@ -332,24 +384,37 @@ export default function BarangPage() {
                                 control={form.control}
                                 name="salePrice"
                                 render={({ field }) => (
-                                    <FormItem className="grid grid-cols-4 items-center gap-4">
-                                    <FormLabel className="text-right">Harga Jual</FormLabel>
+                                    <FormItem>
+                                    <FormLabel>Harga Jual</FormLabel>
                                     <FormControl>
-                                        <Input type="number" className="col-span-3" {...field} />
+                                        <Input type="number" {...field} />
                                     </FormControl>
-                                    <FormMessage className="col-span-4 text-right" />
+                                    <FormMessage />
                                     </FormItem>
                                 )}
+                                />
+                                <FormField
+                                    control={form.control}
+                                    name="stock"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                        <FormLabel>Stok Awal</FormLabel>
+                                        <FormControl>
+                                            <Input type="number" {...field} />
+                                        </FormControl>
+                                        <FormMessage />
+                                        </FormItem>
+                                    )}
                                 />
                                 <FormField
                                 control={form.control}
                                 name="unit"
                                 render={({ field }) => (
-                                    <FormItem className="grid grid-cols-4 items-center gap-4">
-                                        <FormLabel className="text-right">Satuan</FormLabel>
+                                    <FormItem>
+                                        <FormLabel>Satuan</FormLabel>
                                         <Select onValueChange={field.onChange} defaultValue={field.value}>
                                             <FormControl>
-                                            <SelectTrigger className="col-span-3">
+                                            <SelectTrigger>
                                                 <SelectValue placeholder="Pilih satuan" />
                                             </SelectTrigger>
                                             </FormControl>
@@ -360,12 +425,12 @@ export default function BarangPage() {
                                             <SelectItem value="set">Set</SelectItem>
                                             </SelectContent>
                                         </Select>
-                                        <FormMessage className="col-span-4 text-right" />
+                                        <FormMessage />
                                     </FormItem>
                                 )}
                                 />
                             </div>
-                            <Separator className="my-4" />
+                            <Separator />
                             <div>
                                 <div className="flex justify-between items-center mb-2">
                                     <div>
@@ -434,6 +499,41 @@ export default function BarangPage() {
                 </Form>
             </DialogContent>
            </Dialog>
+
+           {/* Stock Edit Dialog */}
+            <Dialog open={isStockDialogOpen} onOpenChange={setStockDialogOpen}>
+                <DialogContent className="sm:max-w-md">
+                    <Form {...stockForm}>
+                        <form onSubmit={stockForm.handleSubmit(onStockSubmit)}>
+                            <DialogHeader>
+                                <DialogTitle>Ubah Stok: {selectedProduct?.name}</DialogTitle>
+                                <DialogDescription>
+                                    Sesuaikan jumlah stok untuk produk ini.
+                                </DialogDescription>
+                            </DialogHeader>
+                            <div className="grid gap-4 py-4">
+                                <FormField
+                                    control={stockForm.control}
+                                    name="stock"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                        <FormLabel>Jumlah Stok Baru</FormLabel>
+                                        <FormControl>
+                                            <Input type="number" {...field} />
+                                        </FormControl>
+                                        <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                            </div>
+                            <DialogFooter>
+                                <Button type="submit">Simpan Stok</Button>
+                            </DialogFooter>
+                        </form>
+                    </Form>
+                </DialogContent>
+            </Dialog>
+
         </CardContent>
       </Card>
     </div>
