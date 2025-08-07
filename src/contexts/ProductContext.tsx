@@ -107,7 +107,7 @@ export const ProductProvider = ({ children }: { children: ReactNode }) => {
   const updateProduct = (productId: string, productData: ProductFormValues) => {
     setProducts(prevProducts =>
       prevProducts.map(p =>
-        p.id === productId ? { ...p, ...productData } : p
+        p.id === productId ? { ...p, ...productData, id: p.id } : p
       )
     );
   };
