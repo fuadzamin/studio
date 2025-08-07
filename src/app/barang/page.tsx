@@ -115,16 +115,40 @@ const initialProducts = [
   },
 ];
 
+type Product = typeof initialProducts[0];
+
 
 export default function BarangPage() {
   const [products, setProducts] = useState(initialProducts);
   const [searchTerm, setSearchTerm] = useState("");
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+
+  const [isAddDialogOpen, setAddDialogOpen] = useState(false);
+  const [isEditDialogOpen, setEditDialogOpen] = useState(false);
+  const [isStockDialogOpen, setStockDialogOpen] = useState(false);
+  const [isDeleteDialogOpen, setDeleteDialogOpen] = useState(false);
+
 
   const filteredProducts = products.filter(
     (product) =>
       product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       product.code.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  const handleEditClick = (product: Product) => {
+    setSelectedProduct(product);
+    setEditDialogOpen(true);
+  };
+
+  const handleStockClick = (product: Product) => {
+    setSelectedProduct(product);
+    setStockDialogOpen(true);
+  };
+
+  const handleDeleteClick = (product: Product) => {
+    setSelectedProduct(product);
+    setDeleteDialogOpen(true);
+  };
 
   return (
     <div className="space-y-8">
@@ -156,7 +180,7 @@ export default function BarangPage() {
                 <File className="mr-2 h-4 w-4" />
                 Export
               </Button>
-              <Dialog>
+              <Dialog open={isAddDialogOpen} onOpenChange={setAddDialogOpen}>
                 <DialogTrigger asChild>
                   <Button size="sm">
                     <PlusCircle className="mr-2 h-4 w-4" />
@@ -254,22 +278,16 @@ export default function BarangPage() {
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
                         <DropdownMenuLabel>Aksi</DropdownMenuLabel>
-                        <DialogTrigger asChild>
-                            <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
-                                <Edit className="mr-2 h-4 w-4" /> Edit
-                            </DropdownMenuItem>
-                        </DialogTrigger>
-                         <DialogTrigger asChild>
-                            <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
-                                <Plus className="mr-2 h-4 w-4" />/<Minus className="mr-2 h-4 w-4" /> 
-                                Sesuaikan Stok
-                            </DropdownMenuItem>
-                        </DialogTrigger>
-                        <AlertDialogTrigger asChild>
-                          <DropdownMenuItem className="text-destructive" onSelect={(e) => e.preventDefault()}>
+                        <DropdownMenuItem onSelect={() => handleEditClick(product)}>
+                            <Edit className="mr-2 h-4 w-4" /> Edit
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onSelect={() => handleStockClick(product)}>
+                            <Plus className="mr-2 h-4 w-4" />/<Minus className="mr-2 h-4 w-4" /> 
+                            Sesuaikan Stok
+                        </DropdownMenuItem>
+                         <DropdownMenuItem onSelect={() => handleDeleteClick(product)} className="text-destructive">
                             <Trash2 className="mr-2 h-4 w-4" /> Hapus
                           </DropdownMenuItem>
-                        </AlertDialogTrigger>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </TableCell>
@@ -280,61 +298,64 @@ export default function BarangPage() {
         </CardContent>
       </Card>
 
-      {/* Edit Dialog (shared with add) */}
-      <DialogContent className="sm:max-w-[425px]">
-          <DialogHeader>
-            <DialogTitle>Edit Produk</DialogTitle>
-            <DialogDescription>
-              Ubah detail produk di bawah ini.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="grid gap-4 py-4">
-             <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="product_name_edit" className="text-right">Nama</Label>
-              <Input id="product_name_edit" defaultValue="Nurse Call Unit" className="col-span-3" />
+      {/* Edit Dialog */}
+       <Dialog open={isEditDialogOpen} onOpenChange={setEditDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+            <DialogHeader>
+              <DialogTitle>Edit Produk</DialogTitle>
+              <DialogDescription>
+                Ubah detail produk di bawah ini.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+               <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="product_name_edit" className="text-right">Nama</Label>
+                <Input id="product_name_edit" defaultValue={selectedProduct?.name} className="col-span-3" />
+              </div>
+               <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="product_code_edit" className="text-right">Kode</Label>
+                <Input id="product_code_edit" defaultValue={selectedProduct?.code} className="col-span-3" />
+              </div>
+               <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="purchase_price_edit" className="text-right">Harga Beli</Label>
+                <Input id="purchase_price_edit" type="number" defaultValue={selectedProduct?.purchasePrice} className="col-span-3" />
+              </div>
+               <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="sale_price_edit" className="text-right">Harga Jual</Label>
+                <Input id="sale_price_edit" type="number" defaultValue={selectedProduct?.salePrice} className="col-span-3" />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="stock_edit" className="text-right">Stok</Label>
+                <Input id="stock_edit" type="number" defaultValue={selectedProduct?.stock} className="col-span-3" readOnly />
+              </div>
+               <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="unit_edit" className="text-right">Satuan</Label>
+                 <Select defaultValue={selectedProduct?.unit}>
+                  <SelectTrigger className="col-span-3">
+                    <SelectValue placeholder="Pilih satuan" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="pcs">Pcs</SelectItem>
+                    <SelectItem value="roll">Roll</SelectItem>
+                    <SelectItem value="meter">Meter</SelectItem>
+                     <SelectItem value="set">Set</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
-             <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="product_code_edit" className="text-right">Kode</Label>
-              <Input id="product_code_edit" defaultValue="NC001" className="col-span-3" />
-            </div>
-             <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="purchase_price_edit" className="text-right">Harga Beli</Label>
-              <Input id="purchase_price_edit" type="number" defaultValue="1500000" className="col-span-3" />
-            </div>
-             <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="sale_price_edit" className="text-right">Harga Jual</Label>
-              <Input id="sale_price_edit" type="number" defaultValue="1750000" className="col-span-3" />
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="stock_edit" className="text-right">Stok</Label>
-              <Input id="stock_edit" type="number" defaultValue="15" className="col-span-3" readOnly />
-            </div>
-             <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="unit_edit" className="text-right">Satuan</Label>
-               <Select defaultValue="pcs">
-                <SelectTrigger className="col-span-3">
-                  <SelectValue placeholder="Pilih satuan" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="pcs">Pcs</SelectItem>
-                  <SelectItem value="roll">Roll</SelectItem>
-                  <SelectItem value="meter">Meter</SelectItem>
-                   <SelectItem value="set">Set</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button type="submit">Simpan Perubahan</Button>
-          </DialogFooter>
-        </DialogContent>
-      
+            <DialogFooter>
+              <Button type="submit">Simpan Perubahan</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
       {/* Stock Adjustment Dialog */}
+      <Dialog open={isStockDialogOpen} onOpenChange={setStockDialogOpen}>
        <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
             <DialogTitle>Sesuaikan Stok Produk</DialogTitle>
              <DialogDescription>
-                Produk: Nurse Call Unit (NC001) - Stok Saat Ini: 15 pcs
+                Produk: {selectedProduct?.name} ({selectedProduct?.code}) - Stok Saat Ini: {selectedProduct?.stock} {selectedProduct?.unit}
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
@@ -363,14 +384,16 @@ export default function BarangPage() {
             <Button type="submit">Simpan Penyesuaian</Button>
           </DialogFooter>
         </DialogContent>
+      </Dialog>
 
       {/* Delete Confirmation Dialog */}
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>Apakah Anda yakin?</AlertDialogTitle>
           <AlertDialogDescription>
             Tindakan ini tidak dapat dibatalkan. Ini akan menghapus produk
-            secara permanen. Produk yang terkait dengan transaksi tidak dapat dihapus.
+            "{selectedProduct?.name}" secara permanen. Produk yang terkait dengan transaksi tidak dapat dihapus.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
@@ -380,6 +403,7 @@ export default function BarangPage() {
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
+      </AlertDialog>
 
     </div>
   );
