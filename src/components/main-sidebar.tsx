@@ -37,7 +37,7 @@ import { Button } from "@/components/ui/button";
 
 const menuItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/barang", label: "Barang", icon: Boxes },
+  { href: "/barang", label: "Daftar Produk", icon: Boxes },
   { href: "/penjualan", label: "Penjualan", icon: ShoppingCart },
   { href: "/keuangan", label: "Keuangan", icon: Wallet },
   { href: "/pelanggan", label: "Pelanggan", icon: Users },
