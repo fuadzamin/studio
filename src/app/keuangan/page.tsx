@@ -64,6 +64,7 @@ export default function KeuanganPage() {
 
   const [transactionType, setTransactionType] = useState("");
   const [transactionCategory, setTransactionCategory] = useState("");
+  const [description, setDescription] = useState("");
   
   const [selectedMaterial, setSelectedMaterial] = useState<{name: string, unit: string} | null>(null);
   const [purchaseQuantity, setPurchaseQuantity] = useState(0);
@@ -94,28 +95,30 @@ export default function KeuanganPage() {
         return;
     }
     
-    let description = "";
-    let finalAmount = purchasePrice;
+    let finalDescription = "";
     
     if (transactionType === 'expense' && transactionCategory === 'Pembelian Bahan') {
         if (!selectedMaterial || purchaseQuantity <= 0) {
             toast({ title: "Error", description: "Harap pilih material dan masukkan jumlah.", variant: "destructive" });
             return;
         }
-        description = `Pembelian ${selectedMaterial.name} (${purchaseQuantity} ${selectedMaterial.unit})`;
+        finalDescription = `Pembelian ${selectedMaterial.name} (${purchaseQuantity} ${selectedMaterial.unit})`;
         addStock(selectedMaterial.name, purchaseQuantity, selectedMaterial.unit);
     } else {
-        // You might want to get description from a form field for other transaction types
-        description = `Transaksi ${transactionCategory}`;
+        if (!description) {
+            toast({ title: "Error", description: "Keterangan tidak boleh kosong.", variant: "destructive" });
+            return;
+        }
+        finalDescription = description;
     }
 
     const newTransaction: Transaction = {
         id: `trans_${new Date().getTime()}`,
         date: new Date().toISOString().split('T')[0],
         category: transactionCategory,
-        description,
+        description: finalDescription,
         type: transactionType as 'income' | 'expense',
-        amount: finalAmount,
+        amount: purchasePrice,
     };
     
     setTransactions(prev => [newTransaction, ...prev]);
@@ -127,6 +130,7 @@ export default function KeuanganPage() {
     setSelectedMaterial(null);
     setPurchaseQuantity(0);
     setPurchasePrice(0);
+    setDescription("");
   };
 
 
@@ -204,7 +208,7 @@ export default function KeuanganPage() {
                     </div>
                 )}
 
-                {transactionType === 'expense' && transactionCategory === 'Pembelian Bahan' && (
+                {transactionType === 'expense' && transactionCategory === 'Pembelian Bahan' ? (
                  <>
                     <div className="grid grid-cols-4 items-center gap-4">
                         <Label htmlFor="material" className="text-right">Material</Label>
@@ -232,6 +236,13 @@ export default function KeuanganPage() {
                         </div>
                     </div>
                  </>
+                ) : (
+                    transactionType && transactionCategory && (
+                         <div className="grid grid-cols-4 items-start gap-4">
+                            <Label htmlFor="description" className="text-right pt-2">Keterangan</Label>
+                            <Textarea id="description" className="col-span-3" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Masukkan keterangan transaksi..."/>
+                         </div>
+                    )
                 )}
                 <div className="grid grid-cols-4 items-center gap-4">
                   <Label htmlFor="amount" className="text-right">Total Harga</Label>
@@ -253,7 +264,7 @@ export default function KeuanganPage() {
         </TabsContent>
         <TabsContent value="income">
           <TransactionTable transactions={transactions.filter(t => t.type === 'income')} title="Pemasukan" />
-        </TabsContent>
+        </Tabs.Content>
         <TabsContent value="expense">
           <TransactionTable transactions={transactions.filter(t => t.type === 'expense')} title="Pengeluaran" />
         </TabsContent>
@@ -302,3 +313,5 @@ function TransactionTable({ transactions, title }: { transactions: typeof initia
     </Card>
   )
 }
+
+    
