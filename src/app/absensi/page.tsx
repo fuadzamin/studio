@@ -1,7 +1,8 @@
+
 "use client"
 
-import { useState } from "react"
-import { Calendar as CalendarIcon, UserCheck, UserX } from "lucide-react"
+import { useState, useMemo } from "react"
+import { Calendar as CalendarIcon, UserCheck, UserX, Search } from "lucide-react"
 import { format } from "date-fns"
 
 import { cn } from "@/lib/utils"
@@ -27,7 +28,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { Badge } from "@/components/ui/badge"
 import {
   Select,
   SelectContent,
@@ -35,6 +35,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { Input } from "@/components/ui/input"
 
 
 const employeeAttendance = [
@@ -46,6 +47,26 @@ const employeeAttendance = [
 
 export default function AbsensiPage() {
   const [date, setDate] = useState<Date | undefined>(new Date())
+  const [searchTerm, setSearchTerm] = useState("")
+
+  const filteredEmployees = useMemo(() => {
+    return employeeAttendance.filter(employee => 
+      employee.name.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  }, [searchTerm]);
+
+  const handlePresetChange = (value: string) => {
+    const now = new Date();
+    if (value === 'today') {
+      setDate(now);
+    }
+    // Note: weekly, monthly, yearly views would require more logic for aggregation
+    // For now, we just set the date to today as a placeholder for these filters
+     else {
+      setDate(now);
+    }
+  };
+
 
   return (
     <div className="space-y-8">
@@ -59,30 +80,53 @@ export default function AbsensiPage() {
       <Card>
          <CardHeader>
           <CardTitle>Catat Kehadiran Harian</CardTitle>
-          <CardDescription>Pilih tanggal untuk mencatat atau melihat absensi.</CardDescription>
-           <div className="flex items-center justify-between pt-4">
-             <Popover>
-                <PopoverTrigger asChild>
-                <Button
-                    variant={"outline"}
-                    className={cn(
-                    "w-[280px] justify-start text-left font-normal",
-                    !date && "text-muted-foreground"
-                    )}
-                >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {date ? format(date, "PPP") : <span>Pilih tanggal</span>}
-                </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0">
-                <Calendar
-                    mode="single"
-                    selected={date}
-                    onSelect={setDate}
-                    initialFocus
-                />
-                </PopoverContent>
-            </Popover>
+          <CardDescription>Pilih tanggal dan cari karyawan untuk mencatat atau melihat absensi.</CardDescription>
+           <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4">
+             <div className="relative w-full sm:max-w-xs">
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                type="search"
+                placeholder="Cari nama karyawan..."
+                className="pl-8"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
+             <div className="flex flex-col sm:flex-row items-center gap-2 w-full sm:w-auto">
+                <Select onValueChange={handlePresetChange}>
+                    <SelectTrigger className="w-full sm:w-[150px]">
+                        <SelectValue placeholder="Filter Waktu" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="today">Hari Ini</SelectItem>
+                        <SelectItem value="this_week">Minggu Ini</SelectItem>
+                        <SelectItem value="this_month">Bulan Ini</SelectItem>
+                        <SelectItem value="this_year">Tahun Ini</SelectItem>
+                    </SelectContent>
+                </Select>
+                <Popover>
+                    <PopoverTrigger asChild>
+                    <Button
+                        variant={"outline"}
+                        className={cn(
+                        "w-full sm:w-[240px] justify-start text-left font-normal",
+                        !date && "text-muted-foreground"
+                        )}
+                    >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {date ? format(date, "PPP") : <span>Pilih tanggal</span>}
+                    </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0">
+                    <Calendar
+                        mode="single"
+                        selected={date}
+                        onSelect={setDate}
+                        initialFocus
+                    />
+                    </PopoverContent>
+                </Popover>
+            </div>
           </div>
         </CardHeader>
         <CardContent>
@@ -94,7 +138,7 @@ export default function AbsensiPage() {
                     </TableRow>
                 </TableHeader>
                 <TableBody>
-                    {employeeAttendance.map((employee) => (
+                    {filteredEmployees.map((employee) => (
                         <TableRow key={employee.id}>
                             <TableCell className="font-medium">{employee.name}</TableCell>
                             <TableCell>
