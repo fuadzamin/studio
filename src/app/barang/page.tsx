@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useContext, useEffect } from "react";
@@ -219,7 +220,7 @@ export default function BarangPage() {
                             </DialogDescription>
                             </DialogHeader>
                             <div className="grid gap-6 py-4 max-h-[70vh] overflow-y-auto pr-6">
-                                <div className="grid grid-cols-2 gap-4">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                     <FormField
                                     control={form.control}
                                     name="name"
