@@ -1,8 +1,8 @@
 
 "use client"
 
-import { useState, useMemo, useEffect } from "react"
-import { Calendar as CalendarIcon, UserCheck, UserX, Clock, Search, PlusCircle } from "lucide-react"
+import { useState, useMemo, useEffect, useContext } from "react"
+import { Calendar as CalendarIcon, UserCheck, UserX, Clock, Search, PlusCircle, MoreHorizontal, Edit, Trash2 } from "lucide-react"
 import { format, isWithinInterval, parseISO, startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfYear, endOfYear, subDays } from "date-fns"
 import { id as indonesiaLocale } from "date-fns/locale"
 import { DateRange } from "react-day-picker"
@@ -47,25 +47,35 @@ import {
   DialogDescription,
   DialogFooter,
   DialogTrigger,
-} from "@/components/ui/dialog";
+} from "@/components/ui/dialog"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 import { Label } from "@/components/ui/label"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { EmployeeContext, Employee, EmployeeFormValues, employeeSchema } from "@/contexts/EmployeeContext"
+import { useForm } from "react-hook-form"
+import { zodResolver } from "@hookform/resolvers/zod"
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 
-
-const employeeList = [
-    { id: "emp-1", name: "Budi Santoso" },
-    { id: "emp-2", name: "Citra Lestari" },
-    { id: "emp-3", name: "Doni Firmansyah" },
-    { id: "emp-4", name: "Eka Putri" },
-];
 
 const initialAttendanceData = [
-    { id: "1", employeeId: "emp-1", name: "Budi Santoso", date: subDays(new Date(), 1).toISOString().split('T')[0], status: "Hadir", notes: "" },
-    { id: "2", employeeId: "emp-2", name: "Citra Lestari", date: subDays(new Date(), 1).toISOString().split('T')[0], status: "Hadir", notes: "" },
-    { id: "3", employeeId: "emp-3", name: "Doni Firmansyah", date: subDays(new Date(), 1).toISOString().split('T')[0], status: "Tidak Hadir", notes: "" },
-    { id: "4", employeeId: "emp-4", name: "Eka Putri", date: subDays(new Date(), 1).toISOString().split('T')[0], status: "Telat", notes: "Bocor ban di jalan" },
-    { id: "5", employeeId: "emp-1", name: "Budi Santoso", date: subDays(new Date(), 2).toISOString().split('T')[0], status: "Hadir", notes: "" },
-    { id: "6", employeeId: "emp-2", name: "Citra Lestari", date: subDays(new Date(), 8).toISOString().split('T')[0], status: "Hadir", notes: "" },
-    { id: "7", employeeId: "emp-3", name: "Doni Firmansyah", date: subDays(new Date(), 35).toISOString().split('T')[0], status: "Hadir", notes: "" },
+    { id: "att-1", employeeId: "emp-1", name: "Budi Santoso", date: subDays(new Date(), 1).toISOString().split('T')[0], status: "Hadir", notes: "" },
+    { id: "att-2", employeeId: "emp-2", name: "Citra Lestari", date: subDays(new Date(), 1).toISOString().split('T')[0], status: "Hadir", notes: "" },
+    { id: "att-3", employeeId: "emp-3", name: "Doni Firmansyah", date: subDays(new Date(), 1).toISOString().split('T')[0], status: "Tidak Hadir", notes: "" },
+    { id: "att-4", employeeId: "emp-4", name: "Eka Putri", date: subDays(new Date(), 1).toISOString().split('T')[0], status: "Telat", notes: "Bocor ban di jalan" },
+    { id: "att-5", employeeId: "emp-1", name: "Budi Santoso", date: subDays(new Date(), 2).toISOString().split('T')[0], status: "Hadir", notes: "" },
+    { id: "att-6", employeeId: "emp-2", name: "Citra Lestari", date: subDays(new Date(), 8).toISOString().split('T')[0], status: "Hadir", notes: "" },
+    { id: "att-7", employeeId: "emp-3", name: "Doni Firmansyah", date: subDays(new Date(), 35).toISOString().split('T')[0], status: "Hadir", notes: "" },
 ]
 
 type AttendanceRecord = {
@@ -80,7 +90,13 @@ type AttendanceRecord = {
 type NewAttendanceInput = Omit<AttendanceRecord, 'id' | 'name'>;
 
 
-export default function AbsensiPage() {
+function AttendanceTab() {
+  const employeeContext = useContext(EmployeeContext);
+  if (!employeeContext) {
+    throw new Error("AttendanceTab must be used within an EmployeeProvider");
+  }
+  const { employees } = employeeContext;
+
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
   const [attendance, setAttendance] = useState<AttendanceRecord[]>(initialAttendanceData);
   const [searchTerm, setSearchTerm] = useState("");
@@ -91,17 +107,16 @@ export default function AbsensiPage() {
   const [newAttendanceInputs, setNewAttendanceInputs] = useState<NewAttendanceInput[]>([]);
 
   useEffect(() => {
-    // Initialize inputs when dialog opens for the selected date
     if (isAddDialogOpen) {
-      const initialInputs = employeeList.map(emp => ({
+      const initialInputs = employees.map(emp => ({
         employeeId: emp.id,
         date: newAttendanceDate,
-        status: 'Hadir', // Default status
+        status: 'Hadir',
         notes: ''
       }));
       setNewAttendanceInputs(initialInputs);
     }
-  }, [isAddDialogOpen, newAttendanceDate]);
+  }, [isAddDialogOpen, newAttendanceDate, employees]);
 
 
   const handleStatusChange = (id: string, newStatus: string) => {
@@ -140,7 +155,7 @@ export default function AbsensiPage() {
     }
     
     const newRecords: AttendanceRecord[] = newAttendanceInputs.map(input => {
-        const employee = employeeList.find(emp => emp.id === input.employeeId);
+        const employee = employees.find(emp => emp.id === input.employeeId);
         return {
             ...input,
             id: `att_${new Date().getTime()}_${input.employeeId}`,
@@ -193,16 +208,7 @@ export default function AbsensiPage() {
     }
   };
 
-
   return (
-    <div className="space-y-8">
-      <div>
-        <h1 className="text-3xl font-bold">Absensi Karyawan</h1>
-        <p className="text-muted-foreground mt-2">
-          Catat dan kelola kehadiran harian karyawan.
-        </p>
-      </div>
-
       <Card>
          <CardHeader>
           <CardTitle>Riwayat Kehadiran</CardTitle>
@@ -307,7 +313,7 @@ export default function AbsensiPage() {
                                     <TableBody>
                                         {newAttendanceInputs.map(input => (
                                             <TableRow key={input.employeeId}>
-                                                <TableCell className="font-medium">{employeeList.find(e => e.id === input.employeeId)?.name}</TableCell>
+                                                <TableCell className="font-medium">{employees.find(e => e.id === input.employeeId)?.name}</TableCell>
                                                 <TableCell>
                                                     <Select value={input.status} onValueChange={(value) => handleNewAttendanceInputChange(input.employeeId, 'status', value)}>
                                                         <SelectTrigger><SelectValue/></SelectTrigger>
@@ -408,8 +414,201 @@ export default function AbsensiPage() {
             </Table>
         </CardContent>
       </Card>
-    </div>
   );
 }
 
-    
+function EmployeeListTab() {
+  const context = useContext(EmployeeContext);
+  if (!context) {
+    throw new Error("EmployeeListTab must be used within an EmployeeProvider");
+  }
+  const { employees, addEmployee, updateEmployee, deleteEmployee } = context;
+
+  const [isAddEditDialogOpen, setAddEditDialogOpen] = useState(false);
+  const [isDeleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
+  const { toast } = useToast();
+
+  const form = useForm<EmployeeFormValues>({
+    resolver: zodResolver(employeeSchema),
+    defaultValues: { name: "", position: "" },
+  });
+
+  const handleAddClick = () => {
+    setSelectedEmployee(null);
+    form.reset({ name: "", position: "" });
+    setAddEditDialogOpen(true);
+  };
+
+  const handleEditClick = (employee: Employee) => {
+    setSelectedEmployee(employee);
+    form.reset(employee);
+    setAddEditDialogOpen(true);
+  };
+
+  const handleDeleteClick = (employee: Employee) => {
+    setSelectedEmployee(employee);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleDeleteConfirm = () => {
+    if (selectedEmployee) {
+      deleteEmployee(selectedEmployee.id);
+      toast({
+        title: "Sukses",
+        description: `Karyawan "${selectedEmployee.name}" berhasil dihapus.`,
+      });
+      setDeleteDialogOpen(false);
+      setSelectedEmployee(null);
+    }
+  };
+
+  const onSubmit = (data: EmployeeFormValues) => {
+    if (selectedEmployee) {
+      updateEmployee(selectedEmployee.id, data);
+      toast({ title: "Sukses", description: "Data karyawan berhasil diperbarui." });
+    } else {
+      addEmployee(data);
+      toast({ title: "Sukses", description: "Karyawan baru berhasil ditambahkan." });
+    }
+    setAddEditDialogOpen(false);
+    setSelectedEmployee(null);
+  };
+  
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Daftar Karyawan</CardTitle>
+        <CardDescription>Kelola data karyawan di perusahaan Anda.</CardDescription>
+        <div className="flex items-center justify-end pt-4">
+           <Dialog open={isAddEditDialogOpen} onOpenChange={setAddEditDialogOpen}>
+            <DialogTrigger asChild>
+              <Button onClick={handleAddClick}>
+                <PlusCircle className="mr-2 h-4 w-4" /> Tambah Karyawan
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-md">
+              <Form {...form}>
+                <form onSubmit={form.handleSubmit(onSubmit)}>
+                  <DialogHeader>
+                    <DialogTitle>{selectedEmployee ? 'Edit Karyawan' : 'Tambah Karyawan Baru'}</DialogTitle>
+                  </DialogHeader>
+                  <div className="grid gap-4 py-4">
+                    <FormField
+                      control={form.control}
+                      name="name"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Nama Karyawan</FormLabel>
+                          <FormControl><Input {...field} placeholder="Contoh: Budi Santoso" /></FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="position"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Posisi</FormLabel>
+                          <FormControl><Input {...field} placeholder="Contoh: Staf Produksi" /></FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                  <DialogFooter>
+                    <Button type="submit">Simpan</Button>
+                  </DialogFooter>
+                </form>
+              </Form>
+            </DialogContent>
+           </Dialog>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Nama Karyawan</TableHead>
+              <TableHead>Posisi</TableHead>
+              <TableHead><span className="sr-only">Aksi</span></TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {employees.map((employee) => (
+              <TableRow key={employee.id}>
+                <TableCell className="font-medium">{employee.name}</TableCell>
+                <TableCell>{employee.position}</TableCell>
+                <TableCell className="text-right">
+                  <AlertDialog open={isDeleteDialogOpen && selectedEmployee?.id === employee.id} onOpenChange={setDeleteDialogOpen}>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button aria-haspopup="true" size="icon" variant="ghost">
+                            <MoreHorizontal className="h-4 w-4" />
+                            <span className="sr-only">Toggle menu</span>
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuLabel>Aksi</DropdownMenuLabel>
+                          <DropdownMenuItem onSelect={() => handleEditClick(employee)}>
+                            <Edit className="mr-2 h-4 w-4" /> Edit
+                          </DropdownMenuItem>
+                          <AlertDialogTrigger asChild>
+                            <DropdownMenuItem onSelect={(e) => { e.preventDefault(); handleDeleteClick(employee); }} className="text-destructive">
+                              <Trash2 className="mr-2 h-4 w-4" /> Hapus
+                            </DropdownMenuItem>
+                          </AlertDialogTrigger>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Apakah Anda yakin?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Tindakan ini akan menghapus karyawan "{selectedEmployee?.name}" secara permanen.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Batal</AlertDialogCancel>
+                          <AlertDialogAction onClick={handleDeleteConfirm} className="bg-destructive hover:bg-destructive/90">
+                            Ya, Hapus
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                   </AlertDialog>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </CardContent>
+    </Card>
+  )
+}
+
+
+export default function AbsensiPage() {
+    return (
+        <div className="space-y-8">
+            <div>
+                <h1 className="text-3xl font-bold">Absensi Karyawan</h1>
+                <p className="text-muted-foreground mt-2">
+                Catat kehadiran harian dan kelola data karyawan Anda.
+                </p>
+            </div>
+
+            <Tabs defaultValue="attendance">
+                <TabsList className="mb-4">
+                    <TabsTrigger value="attendance">Riwayat Kehadiran</TabsTrigger>
+                    <TabsTrigger value="employees">Daftar Karyawan</TabsTrigger>
+                </TabsList>
+                <TabsContent value="attendance">
+                    <AttendanceTab />
+                </TabsContent>
+                <TabsContent value="employees">
+                    <EmployeeListTab />
+                </TabsContent>
+            </Tabs>
+        </div>
+    )
+}

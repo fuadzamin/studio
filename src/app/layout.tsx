@@ -6,6 +6,7 @@ import { Toaster } from '@/components/ui/toaster';
 import { ProductProvider } from '@/contexts/ProductContext';
 import { MaterialProvider } from '@/contexts/MaterialContext';
 import { CustomerProvider } from '@/contexts/CustomerContext';
+import { EmployeeProvider } from '@/contexts/EmployeeContext';
 
 export const metadata: Metadata = {
   title: 'ProFlow ERP',
@@ -28,13 +29,15 @@ export default function RootLayout({
         />
       </head>
       <body className="font-body antialiased">
-        <ProductProvider>
-          <MaterialProvider>
-            <CustomerProvider>
-              <AppShell>{children}</AppShell>
-            </CustomerProvider>
-          </MaterialProvider>
-        </ProductProvider>
+        <EmployeeProvider>
+            <ProductProvider>
+            <MaterialProvider>
+                <CustomerProvider>
+                <AppShell>{children}</AppShell>
+                </CustomerProvider>
+            </MaterialProvider>
+            </ProductProvider>
+        </EmployeeProvider>
         <Toaster />
       </body>
     </html>
