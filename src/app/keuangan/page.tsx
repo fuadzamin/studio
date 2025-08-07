@@ -264,7 +264,7 @@ export default function KeuanganPage() {
         </TabsContent>
         <TabsContent value="income">
           <TransactionTable transactions={transactions.filter(t => t.type === 'income')} title="Pemasukan" />
-        </Tabs.Content>
+        </TabsContent>
         <TabsContent value="expense">
           <TransactionTable transactions={transactions.filter(t => t.type === 'expense')} title="Pengeluaran" />
         </TabsContent>
@@ -313,5 +313,3 @@ function TransactionTable({ transactions, title }: { transactions: typeof initia
     </Card>
   )
 }
-
-    
