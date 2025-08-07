@@ -1,7 +1,8 @@
 "use client";
 
-import { createContext, useState, ReactNode, useCallback } from 'react';
+import { createContext, useState, ReactNode } from 'react';
 import * as z from "zod";
+import { Product } from './ProductContext';
 
 // --- Zod Schema ---
 export const materialSchema = z.object({
@@ -14,6 +15,7 @@ export const materialSchema = z.object({
 // --- TypeScript Types ---
 export type MaterialFormValues = z.infer<typeof materialSchema>;
 export type Material = MaterialFormValues & { id: string };
+type BomItem = Product['bom'][0];
 
 // --- Initial Data ---
 const initialMaterials: Material[] = [
@@ -32,6 +34,7 @@ interface MaterialContextType {
   updateMaterial: (materialId: string, materialData: MaterialFormValues) => void;
   deleteMaterial: (materialId: string) => void;
   addStock: (materialName: string, quantity: number, unit: string) => void;
+  reduceStockFromBom: (bom: BomItem[], productQuantity: number) => { success: boolean; message: string };
 }
 
 export const MaterialContext = createContext<MaterialContextType | undefined>(undefined);
@@ -64,14 +67,12 @@ export const MaterialProvider = ({ children }: { children: ReactNode }) => {
     setMaterials(prev => {
         const existingMaterial = prev.find(m => m.name === materialName);
         if (existingMaterial) {
-            // Material exists, update its stock
             return prev.map(m => 
                 m.name === materialName 
                 ? { ...m, stock: m.stock + quantity } 
                 : m
             );
         } else {
-            // Material doesn't exist, add it to the list
             const newMaterial: Material = {
                 id: `mat_${new Date().getTime()}`,
                 name: materialName,
@@ -83,8 +84,42 @@ export const MaterialProvider = ({ children }: { children: ReactNode }) => {
     });
   };
 
+  const reduceStockFromBom = (bom: BomItem[], productQuantity: number): { success: boolean; message: string } => {
+    let canFulfill = true;
+    let missingMaterials: string[] = [];
+
+    // First, check if there's enough stock for all materials
+    bom.forEach(bomItem => {
+      const requiredQty = bomItem.quantity * productQuantity;
+      const materialInStock = materials.find(m => m.name === bomItem.materialName);
+      if (!materialInStock || materialInStock.stock < requiredQty) {
+        canFulfill = false;
+        missingMaterials.push(`${bomItem.materialName} (butuh: ${requiredQty}, tersedia: ${materialInStock?.stock || 0})`);
+      }
+    });
+
+    if (!canFulfill) {
+      return { success: false, message: `Stok tidak cukup untuk: ${missingMaterials.join(', ')}.` };
+    }
+
+    // If stock is sufficient, reduce it
+    setMaterials(prevMaterials => {
+      const newMaterials = [...prevMaterials];
+      bom.forEach(bomItem => {
+        const requiredQty = bomItem.quantity * productQuantity;
+        const materialIndex = newMaterials.findIndex(m => m.name === bomItem.materialName);
+        if (materialIndex !== -1) {
+          newMaterials[materialIndex].stock -= requiredQty;
+        }
+      });
+      return newMaterials;
+    });
+
+    return { success: true, message: "Stok berhasil dikurangi." };
+  };
+
   return (
-    <MaterialContext.Provider value={{ materials, addMaterial, updateMaterial, deleteMaterial, addStock }}>
+    <MaterialContext.Provider value={{ materials, addMaterial, updateMaterial, deleteMaterial, addStock, reduceStockFromBom }}>
       {children}
     </MaterialContext.Provider>
   );

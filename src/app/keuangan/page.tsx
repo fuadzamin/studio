@@ -39,16 +39,16 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
-import { ProductContext } from "@/contexts/ProductContext";
+import { ProductContext, Product } from "@/contexts/ProductContext";
 import { MaterialContext } from "@/contexts/MaterialContext";
 import { useToast } from "@/hooks/use-toast";
 
 
 const initialTransactions = [
   { id: "1", date: "2024-05-01", category: "Pembelian Bahan", description: "Pembelian Panel P10 (10 pcs)", type: "expense", amount: 5000000 },
-  { id: "2", date: "2024-05-03", category: "Penjualan", description: "Penjualan Nurse Call ke RS Harapan", type: "income", amount: 17500000 },
+  { id: "2", date: "2024-05-03", category: "Penjualan Produk", description: "Penjualan Nurse Call ke RS Harapan", type: "income", amount: 17500000 },
   { id: "3", date: "2024-05-05", category: "Gaji Karyawan", description: "Gaji bulan April", type: "expense", amount: 15000000 },
-  { id: "4", date: "2024-05-10", category: "Penjualan", description: "Penjualan JDM ke Masjid Al-Ikhlas", type: "income", amount: 25000000 },
+  { id: "4", date: "2024-05-10", category: "Penjualan Produk", description: "Penjualan JDM ke Masjid Al-Ikhlas", type: "income", amount: 25000000 },
   { id: "5", date: "2024-05-12", category: "Operasional", description: "Bayar listrik dan internet", type: "expense", amount: 1500000 },
 ];
 
@@ -65,16 +65,21 @@ export default function KeuanganPage() {
   const [transactionType, setTransactionType] = useState("");
   const [transactionCategory, setTransactionCategory] = useState("");
   const [description, setDescription] = useState("");
-  
+  const [totalPrice, setTotalPrice] = useState(0);
+
+  // State for purchasing materials
   const [selectedMaterial, setSelectedMaterial] = useState<{name: string, unit: string} | null>(null);
   const [purchaseQuantity, setPurchaseQuantity] = useState(0);
-  const [purchasePrice, setPurchasePrice] = useState(0);
+
+  // State for selling products
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [saleQuantity, setSaleQuantity] = useState(0);
 
   if (!productContext || !materialContext) {
     throw new Error("KeuanganPage must be used within a ProductProvider and MaterialProvider");
   }
   const { products } = productContext;
-  const { addStock } = materialContext;
+  const { addStock, reduceStockFromBom } = materialContext;
   
   const allBomMaterials = useMemo(() => {
     const materialMap = new Map<string, { name: string, unit: string }>();
@@ -90,7 +95,7 @@ export default function KeuanganPage() {
 
 
   const handleAddTransaction = () => {
-    if (!transactionType || !transactionCategory || purchasePrice <= 0) {
+    if (!transactionType || !transactionCategory || totalPrice <= 0) {
         toast({ title: "Error", description: "Harap isi semua field yang diperlukan.", variant: "destructive" });
         return;
     }
@@ -104,6 +109,18 @@ export default function KeuanganPage() {
         }
         finalDescription = `Pembelian ${selectedMaterial.name} (${purchaseQuantity} ${selectedMaterial.unit})`;
         addStock(selectedMaterial.name, purchaseQuantity, selectedMaterial.unit);
+    } else if (transactionType === 'income' && transactionCategory === 'Penjualan Produk') {
+        if (!selectedProduct || saleQuantity <= 0) {
+            toast({ title: "Error", description: "Harap pilih produk dan masukkan jumlah.", variant: "destructive" });
+            return;
+        }
+        finalDescription = `Penjualan ${selectedProduct.name} (${saleQuantity} ${selectedProduct.unit})`;
+        const reduceResult = reduceStockFromBom(selectedProduct.bom, saleQuantity);
+        if (!reduceResult.success) {
+            toast({ title: "Error Stok Tidak Cukup", description: reduceResult.message, variant: "destructive" });
+            return;
+        }
+        toast({ title: "Info", description: "Stok material telah dikurangi.", variant: "default" });
     } else {
         if (!description) {
             toast({ title: "Error", description: "Keterangan tidak boleh kosong.", variant: "destructive" });
@@ -118,19 +135,22 @@ export default function KeuanganPage() {
         category: transactionCategory,
         description: finalDescription,
         type: transactionType as 'income' | 'expense',
-        amount: purchasePrice,
+        amount: totalPrice,
     };
     
     setTransactions(prev => [newTransaction, ...prev]);
     toast({ title: "Sukses", description: "Transaksi baru berhasil ditambahkan." });
     setAddDialogOpen(false);
+    
     // Reset form states
     setTransactionType("");
     setTransactionCategory("");
+    setDescription("");
+    setTotalPrice(0);
     setSelectedMaterial(null);
     setPurchaseQuantity(0);
-    setPurchasePrice(0);
-    setDescription("");
+    setSelectedProduct(null);
+    setSaleQuantity(0);
   };
 
 
@@ -200,9 +220,9 @@ export default function KeuanganPage() {
                             <SelectValue placeholder="Pilih kategori pemasukan" />
                             </SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="Penjualan">Penjualan</SelectItem>
+                                <SelectItem value="Penjualan Produk">Penjualan Produk</SelectItem>
                                 <SelectItem value="Pendapatan Jasa">Pendapatan Jasa</SelectItem>
-                                <SelectItem value="Lainnya">Lainnya</SelectItem>
+                                <SelectItem value="Pendapatan Lain-lain">Pendapatan Lain-lain</SelectItem>
                             </SelectContent>
                         </Select>
                     </div>
@@ -236,6 +256,34 @@ export default function KeuanganPage() {
                         </div>
                     </div>
                  </>
+                ) : transactionType === 'income' && transactionCategory === 'Penjualan Produk' ? (
+                  <>
+                    <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="product" className="text-right">Produk</Label>
+                        <Select onValueChange={(value) => {
+                            const product = products.find(p => p.id === value);
+                            setSelectedProduct(product || null);
+                        }}>
+                            <SelectTrigger className="col-span-3">
+                                <SelectValue placeholder="Pilih produk yang dijual" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {products.map(product => (
+                                    <SelectItem key={product.id} value={product.id}>
+                                        {product.name}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                    <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="sale_quantity" className="text-right">Jumlah</Label>
+                        <div className="col-span-3 flex items-center gap-2">
+                           <Input id="sale_quantity" type="number" className="flex-1" value={saleQuantity} onChange={(e) => setSaleQuantity(Number(e.target.value))} />
+                           <span className="text-sm text-muted-foreground w-16">{selectedProduct?.unit || 'Satuan'}</span>
+                        </div>
+                    </div>
+                  </>
                 ) : (
                     transactionType && transactionCategory && (
                          <div className="grid grid-cols-4 items-start gap-4">
@@ -246,7 +294,7 @@ export default function KeuanganPage() {
                 )}
                 <div className="grid grid-cols-4 items-center gap-4">
                   <Label htmlFor="amount" className="text-right">Total Harga</Label>
-                  <Input id="amount" type="number" className="col-span-3" value={purchasePrice} onChange={(e) => setPurchasePrice(Number(e.target.value))}/>
+                  <Input id="amount" type="number" className="col-span-3" value={totalPrice} onChange={(e) => setTotalPrice(Number(e.target.value))}/>
                 </div>
                 <div className="grid grid-cols-4 items-center gap-4">
                   <Label htmlFor="date" className="text-right">Tanggal</Label>
