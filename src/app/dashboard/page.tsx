@@ -1,10 +1,10 @@
 
 "use client";
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { DollarSign, Users, ShoppingCart, AlertCircle, Factory } from "lucide-react";
+import { DollarSign, Users, ShoppingCart, AlertCircle, Factory, Package, Code, CheckCircle } from "lucide-react";
 import { ChartContainer, ChartTooltipContent } from "@/components/ui/chart";
 import { useContext } from "react";
 import { ProductContext } from "@/contexts/ProductContext";
@@ -60,48 +60,48 @@ export default function DashboardPage() {
       <div>
         <h1 className="text-3xl font-bold">Dashboard</h1>
         <p className="text-muted-foreground mt-2">
-          Here's a quick overview of your business performance.
+          Berikut adalah ringkasan performa bisnis Anda.
         </p>
       </div>
-      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Sales (This Month)</CardTitle>
+            <CardTitle className="text-sm font-medium">Total Penjualan (Bulan Ini)</CardTitle>
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">Rp 61.000.000</div>
-            <p className="text-xs text-muted-foreground">+5.2% from last month</p>
+            <p className="text-xs text-muted-foreground">+5.2% dari bulan lalu</p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Profit (This Month)</CardTitle>
+            <CardTitle className="text-sm font-medium">Laba (Bulan Ini)</CardTitle>
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">Rp 26.000.000</div>
-            <p className="text-xs text-muted-foreground">+8.1% from last month</p>
+            <p className="text-xs text-muted-foreground">+8.1% dari bulan lalu</p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">New Customers</CardTitle>
+            <CardTitle className="text-sm font-medium">Pelanggan Baru</CardTitle>
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">+12</div>
-            <p className="text-xs text-muted-foreground">in this month</p>
+            <p className="text-xs text-muted-foreground">di bulan ini</p>
           </CardContent>
         </Card>
          <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">New Sales Orders</CardTitle>
+            <CardTitle className="text-sm font-medium">Pesanan Penjualan Baru</CardTitle>
             <ShoppingCart className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">+35</div>
-            <p className="text-xs text-muted-foreground">in this month</p>
+            <p className="text-xs text-muted-foreground">di bulan ini</p>
           </CardContent>
         </Card>
       </div>
@@ -109,7 +109,7 @@ export default function DashboardPage() {
       <div className="grid gap-6 lg:grid-cols-2">
         <Card className="lg:col-span-1">
           <CardHeader>
-            <CardTitle>Income vs Expense</CardTitle>
+            <CardTitle>Pemasukan vs Pengeluaran</CardTitle>
           </CardHeader>
           <CardContent>
             <ChartContainer config={{
@@ -135,7 +135,30 @@ export default function DashboardPage() {
             <CardTitle>Potensi Produksi</CardTitle>
           </CardHeader>
           <CardContent>
-            <Table>
+            {/* Mobile View */}
+            <div className="md:hidden space-y-4">
+                {productionPotential.map((item) => (
+                    <Card key={item.code}>
+                        <CardHeader>
+                           <CardTitle className="text-base flex items-center gap-2">
+                                <Package className="h-5 w-5" /> {item.name}
+                           </CardTitle>
+                           <CardDescription>
+                               <span className="flex items-center gap-2"><Code className="h-4 w-4"/> {item.code}</span>
+                           </CardDescription>
+                        </CardHeader>
+                        <CardContent className="flex justify-between items-center">
+                            <span className="text-sm text-muted-foreground">Dapat Dibuat</span>
+                            <Badge variant={item.producibleUnits > 0 ? "default" : "destructive"} className={item.producibleUnits > 0 ? 'bg-blue-600' : ''}>
+                                {`${item.producibleUnits} ${item.unit}`}
+                            </Badge>
+                        </CardContent>
+                    </Card>
+                ))}
+            </div>
+
+            {/* Desktop View */}
+            <Table className="hidden md:table">
               <TableHeader>
                 <TableRow>
                   <TableHead>Nama Produk</TableHead>
