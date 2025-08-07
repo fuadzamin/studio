@@ -106,9 +106,12 @@ function AttendanceTab() {
   const [isAddDialogOpen, setAddDialogOpen] = useState(false);
   const [newAttendanceDate, setNewAttendanceDate] = useState<string>('');
   const [newAttendanceInputs, setNewAttendanceInputs] = useState<NewAttendanceInput[]>([]);
+  const [today, setToday] = useState('');
 
   useEffect(() => {
-    setNewAttendanceDate(new Date().toISOString().split('T')[0]);
+    const todayStr = new Date().toISOString().split('T')[0];
+    setToday(todayStr);
+    setNewAttendanceDate(todayStr);
   }, []);
 
   useEffect(() => {
@@ -302,7 +305,9 @@ function AttendanceTab() {
                                 <Input 
                                     id="attendance-date" 
                                     type="date" 
-                                    value={newAttendanceDate} 
+                                    value={newAttendanceDate}
+                                    min={today}
+                                    max={today}
                                     onChange={(e) => setNewAttendanceDate(e.target.value)} 
                                     className="w-full sm:w-auto"
                                 />
