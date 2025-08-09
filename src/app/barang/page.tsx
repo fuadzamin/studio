@@ -69,12 +69,12 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
-import { ProductContext, Product, ProductFormValues, productSchema } from "@/contexts/ProductContext";
+import { ProductContext, Product, ProductFormValues, productSchema, useProduct } from "@/contexts/ProductContext";
 import { Skeleton } from "@/components/ui/skeleton";
 
 
 export default function BarangPage() {
-  const context = useContext(ProductContext);
+  const context = useProduct();
   if (!context) {
     throw new Error("BarangPage must be used within a ProductProvider");
   }
@@ -114,7 +114,11 @@ export default function BarangPage() {
 
   const handleEditClick = (product: Product) => {
     setSelectedProduct(product);
-    form.reset(product);
+    form.reset({
+        ...product,
+        // Ensure bom is not undefined
+        bom: product.bom || []
+    });
     setAddEditDialogOpen(true);
   };
 
@@ -139,22 +143,9 @@ export default function BarangPage() {
 
   const handleDeleteConfirm = async () => {
     if (selectedProduct) {
-        try {
-            await deleteProduct(selectedProduct.id);
-            toast({
-                title: "Sukses",
-                description: `Produk "${selectedProduct.name}" berhasil dihapus.`,
-                variant: "default",
-            });
-            setDeleteDialogOpen(false);
-            setSelectedProduct(null);
-        } catch (error) {
-             toast({
-                title: "Gagal",
-                description: "Terjadi kesalahan saat menghapus produk.",
-                variant: "destructive",
-            });
-        }
+        await deleteProduct(selectedProduct.id);
+        setDeleteDialogOpen(false);
+        setSelectedProduct(null);
     }
   };
 
@@ -166,23 +157,13 @@ const onSubmit = async (data: ProductFormValues) => {
         return;
     }
     
-    try {
-        if (isEditing && selectedProduct) {
-            await updateProduct(selectedProduct.id, data);
-            // ... toast sukses dan tutup dialog
-        } else {
-            await addProduct(data); // <-- Ini fungsi untuk menambah produk baru
-            // ... toast sukses dan tutup dialog
-        }
-        setAddEditDialogOpen(false);
-        setSelectedProduct(null);
-    } catch (error) {
-        toast({
-            title: "Gagal",
-            description: "Terjadi kesalahan saat menyimpan produk.", // <-- Pesan error ini yang muncul
-            variant: "destructive",
-        });
+    if (isEditing && selectedProduct) {
+        await updateProduct(selectedProduct.id, data);
+    } else {
+        await addProduct(data);
     }
+    setAddEditDialogOpen(false);
+    setSelectedProduct(null);
   };
 
   return (
@@ -266,7 +247,7 @@ const onSubmit = async (data: ProductFormValues) => {
                                         <FormItem>
                                         <FormLabel>Harga Pokok</FormLabel>
                                         <FormControl>
-                                            <Input type="number" {...field} />
+                                            <Input type="number" {...field} onChange={e => field.onChange(Number(e.target.value))}/>
                                         </FormControl>
                                         <FormMessage />
                                         </FormItem>
@@ -279,7 +260,7 @@ const onSubmit = async (data: ProductFormValues) => {
                                         <FormItem>
                                         <FormLabel>Harga Jual</FormLabel>
                                         <FormControl>
-                                            <Input type="number" {...field} />
+                                            <Input type="number" {...field} onChange={e => field.onChange(Number(e.target.value))}/>
                                         </FormControl>
                                         <FormMessage />
                                         </FormItem>
@@ -292,7 +273,7 @@ const onSubmit = async (data: ProductFormValues) => {
                                         <FormItem>
                                         <FormLabel>Stok Awal</FormLabel>
                                         <FormControl>
-                                            <Input type="number" {...field} />
+                                            <Input type="number" {...field} onChange={e => field.onChange(Number(e.target.value))}/>
                                         </FormControl>
                                         <FormMessage />
                                         </FormItem>
@@ -312,6 +293,7 @@ const onSubmit = async (data: ProductFormValues) => {
                                                 </FormControl>
                                                 <SelectContent>
                                                 <SelectItem value="pcs">Pcs</SelectItem>
+                                                <SelectItem value="unit">Unit</SelectItem>
                                                 <SelectItem value="roll">Roll</SelectItem>
                                                 <SelectItem value="meter">Meter</SelectItem>
                                                 <SelectItem value="set">Set</SelectItem>
@@ -349,7 +331,7 @@ const onSubmit = async (data: ProductFormValues) => {
                                                 name={`bom.${index}.quantity`}
                                                 render={({ field }) => (
                                                     <FormItem className="col-span-3">
-                                                        <FormControl><Input type="number" placeholder="Jumlah" {...field} /></FormControl>
+                                                        <FormControl><Input type="number" placeholder="Jumlah" {...field} onChange={e => field.onChange(Number(e.target.value))}/></FormControl>
                                                          <FormMessage />
                                                     </FormItem>
                                                 )}

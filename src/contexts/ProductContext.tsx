@@ -1,8 +1,9 @@
 
 "use client";
 
-import { createContext, useState, ReactNode, useCallback, useEffect } from 'react';
+import { createContext, useState, ReactNode, useCallback, useEffect, useContext } from 'react';
 import * as z from "zod";
+import { useToast } from '@/hooks/use-toast';
 
 // --- Zod Schema ---
 const bomItemSchema = z.object({
@@ -26,59 +27,6 @@ export const productSchema = z.object({
 export type ProductFormValues = z.infer<typeof productSchema>;
 export type Product = ProductFormValues & { id: string };
 
-// --- Initial Data ---
-const initialProducts: Product[] = [
-  {
-    id: "prod-1",
-    name: "Nurse Call Unit",
-    code: "NC-001",
-    purchasePrice: 1500000,
-    salePrice: 1750000,
-    stock: 50,
-    unit: "unit",
-    bom: [
-      { materialName: "Mainboard V1.2", quantity: 1, unit: "pcs" },
-      { materialName: "Casing Box", quantity: 1, unit: "pcs" },
-      { materialName: "Kabel Power", quantity: 2, unit: "meter" },
-    ],
-  },
-  {
-    id: "prod-2",
-    name: "Digital Mosque Clock",
-    code: "JWS-001",
-    purchasePrice: 4500000,
-    salePrice: 5000000,
-    stock: 25,
-    unit: "unit",
-    bom: [
-      { materialName: "Panel P10", quantity: 6, unit: "pcs" },
-      { materialName: "Controller JWS", quantity: 1, unit: "pcs" },
-      { materialName: "Power Supply 5V", quantity: 2, unit: "pcs" },
-    ],
-  },
-   {
-    id: "prod-3",
-    name: "Queuing Machine Display",
-    code: "QMD-001",
-    purchasePrice: 1000000,
-    salePrice: 1250000,
-    stock: 30,
-    unit: "unit",
-    bom: []
-  },
-  {
-    id: "prod-4",
-    name: "LED Running Text Board",
-    code: "LRT-001",
-    purchasePrice: 500000,
-    salePrice: 650000,
-    stock: 100,
-    unit: "unit",
-    bom: []
-  },
-];
-
-
 // --- Context Definition ---
 interface ProductContextType {
   products: Product[];
@@ -95,63 +43,105 @@ export const ProductContext = createContext<ProductContextType | undefined>(unde
 
 // --- Provider Component ---
 export const ProductProvider = ({ children }: { children: ReactNode }) => {
-  const [products, setProducts] = useState<Product[]>(initialProducts);
-  const [loading, setLoading] = useState(false);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { toast } = useToast();
+
+  const fetchProducts = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await fetch('/api/products');
+      if (!response.ok) {
+        throw new Error('Gagal mengambil data produk');
+      }
+      const data = await response.json();
+      setProducts(data);
+    } catch (err: any) {
+      setError(err.message);
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    } finally {
+      setLoading(false);
+    }
+  }, [toast]);
+
+  useEffect(() => {
+    fetchProducts();
+  }, [fetchProducts]);
+
 
   const addProduct = async (productData: ProductFormValues) => {
-    const newProduct: Product = {
-      ...productData,
-      id: `prod_${new Date().getTime()}`,
-    };
-    setProducts(prev => [...prev, newProduct]);
+    try {
+      const response = await fetch('/api/products', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(productData),
+      });
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Gagal menambahkan produk');
+      }
+      toast({ title: "Sukses", description: "Produk baru berhasil ditambahkan." });
+      await fetchProducts(); // Refresh data
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    }
   };
 
   const updateProduct = async (productId: string, productData: ProductFormValues) => {
-     setProducts(prev =>
-      prev.map(p =>
-        p.id === productId ? { ...p, ...productData, id: p.id } : p
-      )
-    );
+     try {
+      const response = await fetch(`/api/products/${productId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(productData),
+      });
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Gagal memperbarui produk');
+      }
+      toast({ title: "Sukses", description: "Data produk berhasil diperbarui." });
+      await fetchProducts(); // Refresh data
+    } catch (err: any) {
+       toast({ title: "Error", description: err.message, variant: "destructive" });
+    }
   };
 
   const deleteProduct = async (productId: string) => {
-    setProducts(prev => prev.filter(p => p.id !== productId));
+     try {
+      const response = await fetch(`/api/products/${productId}`, {
+        method: 'DELETE',
+      });
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Gagal menghapus produk');
+      }
+      toast({ title: "Sukses", description: "Produk berhasil dihapus." });
+      await fetchProducts(); // Refresh data
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    }
   };
   
-  const increaseProductStock = (productId: string, quantity: number) => {
-    setProducts(prevProducts =>
-      prevProducts.map(p =>
-        p.id === productId ? { ...p, stock: p.stock + quantity } : p
-      )
-    );
+  const increaseProductStock = async (productId: string, quantity: number) => {
+    const product = products.find(p => p.id === productId);
+    if (product) {
+      const newStock = product.stock + quantity;
+      await updateProduct(productId, { ...product, stock: newStock });
+    }
   };
   
   const reduceProductStock = (productId: string, quantity: number): { success: boolean, message: string } => {
-    let success = false;
-    let message = "";
-    
-    setProducts(prevProducts => {
-      const product = prevProducts.find(p => p.id === productId);
-      if (!product) {
-        message = "Produk tidak ditemukan.";
-        success = false;
-        return prevProducts;
-      }
-      if (product.stock < quantity) {
-        message = `Stok ${product.name} tidak mencukupi. Tersedia: ${product.stock}, Dibutuhkan: ${quantity}.`;
-        success = false;
-        return prevProducts;
-      }
-      
-      success = true;
-      message = "Stok berhasil dikurangi.";
-      return prevProducts.map(p =>
-        p.id === productId ? { ...p, stock: p.stock - quantity } : p
-      );
-    });
-
-    return { success, message };
+    const product = products.find(p => p.id === productId);
+    if (!product) {
+      return { success: false, message: "Produk tidak ditemukan." };
+    }
+    if (product.stock < quantity) {
+      return { success: false, message: `Stok ${product.name} tidak mencukupi. Tersedia: ${product.stock}, Dibutuhkan: ${quantity}.` };
+    }
+    const newStock = product.stock - quantity;
+    updateProduct(productId, { ...product, stock: newStock });
+    return { success: true, message: "Stok berhasil dikurangi." };
   };
 
   return (
@@ -159,4 +149,13 @@ export const ProductProvider = ({ children }: { children: ReactNode }) => {
       {children}
     </ProductContext.Provider>
   );
+};
+
+// Custom hook to use the context
+export const useProduct = () => {
+    const context = useContext(ProductContext);
+    if (context === undefined) {
+        throw new Error('useProduct must be used within a ProductProvider');
+    }
+    return context;
 };
