@@ -56,7 +56,7 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { MoreHorizontal, PlusCircle, Trash2, Edit, Factory } from "lucide-react";
+import { MoreHorizontal, PlusCircle, Trash2, Edit, Factory, PackageCheck } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -93,6 +93,13 @@ const productionOrderSchema = z.object({
 
 type ProductionOrderFormValues = z.infer<typeof productionOrderSchema>;
 
+type RequiredMaterial = {
+  materialName: string;
+  requiredQuantity: number;
+  availableStock: number;
+  unit: string;
+  sufficient: boolean;
+};
 
 function ProductionOrderTab() {
     const { toast } = useToast();
@@ -104,9 +111,10 @@ function ProductionOrderTab() {
     }
 
     const { products, increaseProductStock } = productContext;
-    const { reduceStockFromBom } = materialContext;
+    const { materials, reduceStockFromBom } = materialContext;
 
     const [productionHistory, setProductionHistory] = useState<ProductionOrder[]>([]);
+    const [requiredMaterials, setRequiredMaterials] = useState<RequiredMaterial[]>([]);
 
     const form = useForm<ProductionOrderFormValues>({
         resolver: zodResolver(productionOrderSchema),
@@ -115,6 +123,34 @@ function ProductionOrderTab() {
             quantity: 0,
         },
     });
+
+    const watchedProductId = form.watch("productId");
+    const watchedQuantity = form.watch("quantity");
+
+    useEffect(() => {
+        if (watchedProductId && watchedQuantity > 0) {
+            const selectedProduct = products.find(p => p.id === watchedProductId);
+            if (selectedProduct && selectedProduct.bom) {
+                const needed = selectedProduct.bom.map(bomItem => {
+                    const materialInStock = materials.find(m => m.name === bomItem.materialName);
+                    const required = bomItem.quantity * watchedQuantity;
+                    const available = materialInStock?.stock || 0;
+                    return {
+                        materialName: bomItem.materialName,
+                        requiredQuantity: required,
+                        availableStock: available,
+                        unit: bomItem.unit,
+                        sufficient: available >= required
+                    };
+                });
+                setRequiredMaterials(needed);
+            } else {
+                 setRequiredMaterials([]);
+            }
+        } else {
+            setRequiredMaterials([]);
+        }
+    }, [watchedProductId, watchedQuantity, products, materials]);
 
     const productsWithBom = products.filter(p => p.bom && p.bom.length > 0);
 
@@ -152,12 +188,13 @@ function ProductionOrderTab() {
         setProductionHistory(prev => [newOrder, ...prev]);
 
         form.reset();
+        setRequiredMaterials([]);
     };
 
 
     return (
         <div className="grid gap-8 md:grid-cols-3">
-            <div className="md:col-span-1">
+            <div className="md:col-span-1 space-y-6">
                  <Card>
                     <CardHeader>
                         <CardTitle>Buat Perintah Produksi</CardTitle>
@@ -203,7 +240,7 @@ function ProductionOrderTab() {
                                         </FormItem>
                                     )}
                                 />
-                                <Button type="submit" className="w-full">
+                                <Button type="submit" className="w-full" disabled={requiredMaterials.some(m => !m.sufficient) || requiredMaterials.length === 0}>
                                     <Factory className="mr-2 h-4 w-4"/>
                                     Mulai Produksi
                                 </Button>
@@ -211,6 +248,42 @@ function ProductionOrderTab() {
                         </Form>
                     </CardContent>
                 </Card>
+                {requiredMaterials.length > 0 && (
+                     <Card>
+                        <CardHeader>
+                            <CardTitle>Kebutuhan Material</CardTitle>
+                            <CardDescription>
+                                Daftar material yang dibutuhkan untuk produksi.
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>Material</TableHead>
+                                        <TableHead className="text-right">Dibutuhkan</TableHead>
+                                        <TableHead className="text-right">Tersedia</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {requiredMaterials.map(item => (
+                                        <TableRow key={item.materialName} className={!item.sufficient ? "text-destructive" : ""}>
+                                            <TableCell className="font-medium flex items-center gap-2">
+                                                <PackageCheck className={`h-4 w-4 ${item.sufficient ? 'text-green-500' : 'text-destructive'}`}/>
+                                                {item.materialName}
+                                            </TableCell>
+                                            <TableCell className="text-right">{item.requiredQuantity} {item.unit}</TableCell>
+                                            <TableCell className="text-right">{item.availableStock} {item.unit}</TableCell>
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
+                            {!requiredMaterials.every(m => m.sufficient) && (
+                                <p className="text-destructive text-sm font-medium mt-4">Stok material tidak mencukupi untuk memulai produksi.</p>
+                            )}
+                        </CardContent>
+                     </Card>
+                )}
             </div>
             <div className="md:col-span-2">
                 <Card>
@@ -641,3 +714,5 @@ export default function ProduksiPage() {
     </div>
   );
 }
+
+    
