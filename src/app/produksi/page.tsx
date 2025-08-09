@@ -56,7 +56,7 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { MoreHorizontal, PlusCircle, Trash2, Edit, Factory, Package, AlertCircle } from "lucide-react";
+import { MoreHorizontal, PlusCircle, Trash2, Edit, Factory, Package, AlertCircle, ChevronDown, ChevronUp } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -77,6 +77,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { format } from "date-fns";
 import { Badge } from "@/components/ui/badge";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 
 type ProductionOrder = {
@@ -85,6 +86,11 @@ type ProductionOrder = {
     productName: string;
     quantity: number;
     status: 'Selesai';
+    materialsUsed: {
+        materialName: string;
+        quantity: number;
+        unit: string;
+    }[];
 }
 
 const productionOrderSchema = z.object({
@@ -94,7 +100,9 @@ const productionOrderSchema = z.object({
 
 type ProductionOrderFormValues = z.infer<typeof productionOrderSchema>;
 
-function ProductionOrderTab({ onProductionSuccess }: { onProductionSuccess: (order: Omit<ProductionOrder, 'id' | 'status'>) => void }) {
+type ProductionSuccessData = Omit<ProductionOrder, 'id' | 'status'>;
+
+function ProductionOrderTab({ onProductionSuccess }: { onProductionSuccess: (order: ProductionSuccessData) => void }) {
     const { toast } = useToast();
     const productContext = useContext(ProductContext);
     const materialContext = useContext(MaterialContext);
@@ -152,6 +160,11 @@ function ProductionOrderTab({ onProductionSuccess }: { onProductionSuccess: (ord
 
         const bom = selectedProduct.bom;
         const quantityToProduce = data.quantity;
+        const usedMaterials = bom.map(item => ({
+             materialName: item.materialName,
+             quantity: item.quantity * quantityToProduce,
+             unit: item.unit
+        }));
 
         // Reduce material stock, this function now also validates
         const reduceResult = reduceStockFromBom(bom, quantityToProduce);
@@ -176,6 +189,7 @@ function ProductionOrderTab({ onProductionSuccess }: { onProductionSuccess: (ord
             date: new Date().toISOString().split('T')[0],
             productName: selectedProduct.name,
             quantity: quantityToProduce,
+            materialsUsed: usedMaterials,
         });
 
         form.reset({ productId: "", quantity: 0 });
@@ -293,16 +307,19 @@ function ProductionOrderTab({ onProductionSuccess }: { onProductionSuccess: (ord
 }
 
 function ProductionHistoryTab({ history }: { history: ProductionOrder[] }) {
+    const [openItemId, setOpenItemId] = useState<string | null>(null);
+
     return (
         <Card>
             <CardHeader>
                 <CardTitle>Riwayat Perintah Produksi</CardTitle>
-                <CardDescription>Daftar semua perintah produksi yang telah selesai.</CardDescription>
+                <CardDescription>Daftar semua perintah produksi yang telah selesai. Klik baris untuk melihat detail material.</CardDescription>
             </CardHeader>
             <CardContent>
                 <Table>
                     <TableHeader>
                         <TableRow>
+                            <TableHead className="w-[100px]"></TableHead>
                             <TableHead>Tanggal</TableHead>
                             <TableHead>Nama Produk</TableHead>
                             <TableHead>Jumlah</TableHead>
@@ -312,18 +329,57 @@ function ProductionHistoryTab({ history }: { history: ProductionOrder[] }) {
                     <TableBody>
                          {history.length > 0 ? (
                             history.map((order) => (
-                                <TableRow key={order.id}>
-                                    <TableCell>{format(new Date(order.date), "dd MMM yyyy")}</TableCell>
-                                    <TableCell className="font-medium">{order.productName}</TableCell>
-                                    <TableCell>{order.quantity} unit</TableCell>
-                                    <TableCell>
-                                        <Badge>{order.status}</Badge>
-                                    </TableCell>
-                                </TableRow>
+                                <Collapsible asChild key={order.id} open={openItemId === order.id} onOpenChange={() => setOpenItemId(prev => prev === order.id ? null : order.id)}>
+                                    <>
+                                        <TableRow className="cursor-pointer">
+                                            <TableCell>
+                                                <CollapsibleTrigger asChild>
+                                                    <Button variant="ghost" size="sm" className="w-9 p-0">
+                                                        {openItemId === order.id ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                                                        <span className="sr-only">Toggle Details</span>
+                                                    </Button>
+                                                </CollapsibleTrigger>
+                                            </TableCell>
+                                            <TableCell>{format(new Date(order.date), "dd MMM yyyy")}</TableCell>
+                                            <TableCell className="font-medium">{order.productName}</TableCell>
+                                            <TableCell>{order.quantity} unit</TableCell>
+                                            <TableCell>
+                                                <Badge>{order.status}</Badge>
+                                            </TableCell>
+                                        </TableRow>
+                                        <CollapsibleContent asChild>
+                                            <tr className="bg-muted/50">
+                                                <td colSpan={5} className="p-0">
+                                                    <div className="p-4">
+                                                        <h4 className="font-semibold mb-2 ml-4">Material yang Digunakan:</h4>
+                                                        <Table>
+                                                            <TableHeader>
+                                                                <TableRow>
+                                                                    <TableHead className="pl-8">Nama Material</TableHead>
+                                                                    <TableHead>Jumlah</TableHead>
+                                                                    <TableHead>Satuan</TableHead>
+                                                                </TableRow>
+                                                            </TableHeader>
+                                                            <TableBody>
+                                                                {order.materialsUsed.map((material, index) => (
+                                                                    <TableRow key={index} className="border-b-0">
+                                                                        <TableCell className="pl-8">{material.materialName}</TableCell>
+                                                                        <TableCell>{material.quantity}</TableCell>
+                                                                        <TableCell>{material.unit}</TableCell>
+                                                                    </TableRow>
+                                                                ))}
+                                                            </TableBody>
+                                                        </Table>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        </CollapsibleContent>
+                                    </>
+                                </Collapsible>
                             ))
                         ) : (
                              <TableRow>
-                                <TableCell colSpan={4} className="h-24 text-center">
+                                <TableCell colSpan={5} className="h-24 text-center">
                                     Belum ada riwayat produksi.
                                 </TableCell>
                             </TableRow>
@@ -699,7 +755,7 @@ function MaterialStockTab() {
 export default function ProduksiPage() {
     const [productionHistory, setProductionHistory] = useState<ProductionOrder[]>([]);
 
-    const handleAddProductionHistory = (order: Omit<ProductionOrder, 'id' | 'status'>) => {
+    const handleAddProductionHistory = (order: ProductionSuccessData) => {
         const newOrder: ProductionOrder = {
             ...order,
             id: `prod_${new Date().getTime()}`,
