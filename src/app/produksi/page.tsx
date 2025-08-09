@@ -94,7 +94,7 @@ const productionOrderSchema = z.object({
 
 type ProductionOrderFormValues = z.infer<typeof productionOrderSchema>;
 
-function ProductionOrderTab() {
+function ProductionOrderTab({ onProductionSuccess }: { onProductionSuccess: (order: Omit<ProductionOrder, 'id' | 'status'>) => void }) {
     const { toast } = useToast();
     const productContext = useContext(ProductContext);
     const materialContext = useContext(MaterialContext);
@@ -170,6 +170,13 @@ function ProductionOrderTab() {
         // Increase finished product stock
         increaseProductStock(selectedProduct.id, quantityToProduce);
         toast({ title: "Sukses", description: `Stok ${selectedProduct.name} berhasil ditambah.`, variant: "default" });
+        
+        // Add to history
+        onProductionSuccess({
+            date: new Date().toISOString().split('T')[0],
+            productName: selectedProduct.name,
+            quantity: quantityToProduce,
+        });
 
         form.reset({ productId: "", quantity: 0 });
     };
@@ -223,7 +230,7 @@ function ProductionOrderTab() {
                                         </FormItem>
                                     )}
                                 />
-                                <Button type="submit" className="w-full" disabled={!watchedProductId || !watchedQuantity}>
+                                <Button type="submit" className="w-full" disabled={!isProductionPossible || !watchedProductId || !watchedQuantity}>
                                     <Factory className="mr-2 h-4 w-4"/>
                                     Mulai Produksi
                                 </Button>
@@ -283,6 +290,49 @@ function ProductionOrderTab() {
             </div>
         </div>
     );
+}
+
+function ProductionHistoryTab({ history }: { history: ProductionOrder[] }) {
+    return (
+        <Card>
+            <CardHeader>
+                <CardTitle>Riwayat Perintah Produksi</CardTitle>
+                <CardDescription>Daftar semua perintah produksi yang telah selesai.</CardDescription>
+            </CardHeader>
+            <CardContent>
+                <Table>
+                    <TableHeader>
+                        <TableRow>
+                            <TableHead>Tanggal</TableHead>
+                            <TableHead>Nama Produk</TableHead>
+                            <TableHead>Jumlah</TableHead>
+                            <TableHead>Status</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                         {history.length > 0 ? (
+                            history.map((order) => (
+                                <TableRow key={order.id}>
+                                    <TableCell>{format(new Date(order.date), "dd MMM yyyy")}</TableCell>
+                                    <TableCell className="font-medium">{order.productName}</TableCell>
+                                    <TableCell>{order.quantity} unit</TableCell>
+                                    <TableCell>
+                                        <Badge>{order.status}</Badge>
+                                    </TableCell>
+                                </TableRow>
+                            ))
+                        ) : (
+                             <TableRow>
+                                <TableCell colSpan={4} className="h-24 text-center">
+                                    Belum ada riwayat produksi.
+                                </TableCell>
+                            </TableRow>
+                        )}
+                    </TableBody>
+                </Table>
+            </CardContent>
+        </Card>
+    )
 }
 
 function BomTab() {
@@ -647,6 +697,17 @@ function MaterialStockTab() {
 }
 
 export default function ProduksiPage() {
+    const [productionHistory, setProductionHistory] = useState<ProductionOrder[]>([]);
+
+    const handleAddProductionHistory = (order: Omit<ProductionOrder, 'id' | 'status'>) => {
+        const newOrder: ProductionOrder = {
+            ...order,
+            id: `prod_${new Date().getTime()}`,
+            status: 'Selesai'
+        };
+        setProductionHistory(prev => [newOrder, ...prev]);
+    }
+
   return (
     <div className="space-y-8">
       <div>
@@ -658,11 +719,15 @@ export default function ProduksiPage() {
       <Tabs defaultValue="order">
         <TabsList className="mb-4">
           <TabsTrigger value="order">Perintah Produksi</TabsTrigger>
+          <TabsTrigger value="history">Riwayat Produksi</TabsTrigger>
           <TabsTrigger value="bom">Kebutuhan Material (BOM)</TabsTrigger>
           <TabsTrigger value="stok">Stok Material</TabsTrigger>
         </TabsList>
         <TabsContent value="order">
-          <ProductionOrderTab />
+          <ProductionOrderTab onProductionSuccess={handleAddProductionHistory} />
+        </TabsContent>
+         <TabsContent value="history">
+          <ProductionHistoryTab history={productionHistory} />
         </TabsContent>
         <TabsContent value="bom">
           <BomTab />
