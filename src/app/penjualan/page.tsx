@@ -55,7 +55,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover"
 import { Calendar } from "@/components/ui/calendar"
-import { ProductContext } from "@/contexts/ProductContext"
+import { ProductContext, Product } from "@/contexts/ProductContext"
 import { CustomerContext } from "@/contexts/CustomerContext"
 import { useToast } from "@/hooks/use-toast"
 import { cn } from "@/lib/utils"
@@ -78,7 +78,7 @@ export default function PenjualanPage() {
   }
 
   const { salesOrders, addSalesOrder, updateSalesOrder } = salesOrderContext;
-  const { products } = productContext;
+  const { products, reduceProductStock } = productContext;
   const { customers, addCustomer } = customerContext;
   const { toast } = useToast();
 
@@ -91,6 +91,20 @@ export default function PenjualanPage() {
     event.preventDefault();
     const formData = new FormData(event.currentTarget);
     const customerName = formData.get("customer") as string;
+    const productName = formData.get("productName") as string;
+    const quantity = Number(formData.get("quantity"));
+
+    const product = products.find(p => p.name === productName);
+    if (!product) {
+        toast({ title: "Error", description: "Produk yang dipilih tidak valid.", variant: "destructive" });
+        return;
+    }
+
+    const stockCheck = reduceProductStock(product.id, quantity);
+    if (!stockCheck.success) {
+        toast({ title: "Stok Tidak Cukup", description: stockCheck.message, variant: "destructive" });
+        return;
+    }
     
     // Check if customer exists, if not, add them
     const customerExists = customers.some(c => c.name.toLowerCase() === customerName.toLowerCase());
@@ -110,18 +124,14 @@ export default function PenjualanPage() {
     const newOrderData = {
       date: new Date().toISOString().split('T')[0],
       customer: customerName,
-      productName: formData.get("productName") as string,
-      quantity: Number(formData.get("quantity")),
+      productName: productName,
+      quantity: quantity,
       total: Number(formData.get("total")),
       status: "Baru",
     };
     
     addSalesOrder(newOrderData);
-
-    toast({
-        title: "Sukses!",
-        description: "Pesanan penjualan baru berhasil dibuat.",
-    });
+    toast({ title: "Sukses!", description: `Pesanan penjualan baru berhasil dibuat dan stok produk ${product.name} telah dikurangi.` });
     setAddDialogOpen(false);
   };
 
@@ -487,5 +497,3 @@ export default function PenjualanPage() {
     </div>
   );
 }
-
-    

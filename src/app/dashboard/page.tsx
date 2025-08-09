@@ -142,6 +142,7 @@ export default function DashboardPage() {
         name: product.name,
         producibleUnits: maxPossibleUnits,
         unit: product.unit,
+        currentStock: product.stock,
       };
     });
 
@@ -276,7 +277,7 @@ export default function DashboardPage() {
         <Card className="lg:col-span-1">
           <CardHeader className="flex flex-row items-center gap-2">
              <Factory className="h-5 w-5 text-primary" />
-            <CardTitle>Potensi Produksi</CardTitle>
+            <CardTitle>Stok & Potensi Produksi</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="md:hidden space-y-4">
@@ -290,11 +291,17 @@ export default function DashboardPage() {
                                <span className="flex items-center gap-2"><Code className="h-4 w-4"/> {item.code}</span>
                            </CardDescription>
                         </CardHeader>
-                        <CardContent className="flex justify-between items-center">
-                            <span className="text-sm text-muted-foreground">Dapat Dibuat</span>
-                            <Badge variant={item.producibleUnits > 0 ? "default" : "destructive"} className={item.producibleUnits > 0 ? 'bg-blue-600' : ''}>
-                                {`${item.producibleUnits} ${item.unit}`}
-                            </Badge>
+                        <CardContent className="grid grid-cols-2 gap-2 text-sm">
+                           <div className="flex flex-col">
+                                <span className="text-muted-foreground">Stok Tersedia</span>
+                                <span className="font-bold">{item.currentStock} {item.unit}</span>
+                           </div>
+                           <div className="flex flex-col">
+                               <span className="text-muted-foreground">Dapat Dibuat</span>
+                                <Badge variant={item.producibleUnits > 0 ? "default" : "destructive"} className={`w-fit ${item.producibleUnits > 0 ? 'bg-blue-600' : ''}`}>
+                                    {`${item.producibleUnits} ${item.unit}`}
+                                </Badge>
+                           </div>
                         </CardContent>
                     </Card>
                 ))}
@@ -304,7 +311,7 @@ export default function DashboardPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Nama Produk</TableHead>
-                  <TableHead>Kode</TableHead>
+                  <TableHead>Stok Tersedia</TableHead>
                   <TableHead className="text-right">Dapat Dibuat</TableHead>
                 </TableRow>
               </TableHeader>
@@ -312,7 +319,7 @@ export default function DashboardPage() {
                 {productionPotential.map((item) => (
                   <TableRow key={item.code}>
                     <TableCell className="font-medium">{item.name}</TableCell>
-                    <TableCell>{item.code}</TableCell>
+                    <TableCell>{item.currentStock} {item.unit}</TableCell>
                     <TableCell className="text-right">
                        <Badge variant={item.producibleUnits > 0 ? "default" : "destructive"} className={item.producibleUnits > 0 ? 'bg-blue-600' : ''}>
                         {`${item.producibleUnits} ${item.unit}`}
@@ -328,5 +335,3 @@ export default function DashboardPage() {
     </div>
   );
 }
-
-    

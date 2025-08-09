@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useContext, useEffect, useMemo } from "react";
-import { ProductContext } from "@/contexts/ProductContext";
+import { ProductContext, Product } from "@/contexts/ProductContext";
 import {
   MaterialContext,
   Material,
@@ -56,7 +56,7 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { MoreHorizontal, PlusCircle, Trash2, Edit } from "lucide-react";
+import { MoreHorizontal, PlusCircle, Trash2, Edit, Factory } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -75,6 +75,182 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { format } from "date-fns";
+
+
+type ProductionOrder = {
+    id: string;
+    date: string;
+    productName: string;
+    quantity: number;
+    status: 'Selesai';
+}
+
+const productionOrderSchema = z.object({
+    productId: z.string().min(1, "Produk harus dipilih"),
+    quantity: z.coerce.number().min(1, "Jumlah produksi harus lebih dari 0"),
+});
+
+type ProductionOrderFormValues = z.infer<typeof productionOrderSchema>;
+
+
+function ProductionOrderTab() {
+    const { toast } = useToast();
+    const productContext = useContext(ProductContext);
+    const materialContext = useContext(MaterialContext);
+
+    if (!productContext || !materialContext) {
+        throw new Error("ProductionOrderTab must be used within Product and Material Providers");
+    }
+
+    const { products, increaseProductStock } = productContext;
+    const { reduceStockFromBom } = materialContext;
+
+    const [productionHistory, setProductionHistory] = useState<ProductionOrder[]>([]);
+
+    const form = useForm<ProductionOrderFormValues>({
+        resolver: zodResolver(productionOrderSchema),
+        defaultValues: {
+            productId: "",
+            quantity: 0,
+        },
+    });
+
+    const productsWithBom = products.filter(p => p.bom && p.bom.length > 0);
+
+    const onSubmit = (data: ProductionOrderFormValues) => {
+        const selectedProduct = products.find(p => p.id === data.productId);
+        if (!selectedProduct) {
+            toast({ title: "Error", description: "Produk tidak ditemukan.", variant: "destructive" });
+            return;
+        }
+
+        const bom = selectedProduct.bom;
+        const quantityToProduce = data.quantity;
+
+        // Reduce material stock
+        const reduceResult = reduceStockFromBom(bom, quantityToProduce);
+        if (!reduceResult.success) {
+            toast({ title: "Produksi Gagal", description: reduceResult.message, variant: "destructive" });
+            return;
+        }
+        
+        toast({ title: "Sukses", description: "Stok material berhasil dikurangi.", variant: "default" });
+
+        // Increase finished product stock
+        increaseProductStock(selectedProduct.id, quantityToProduce);
+        toast({ title: "Sukses", description: `Stok ${selectedProduct.name} berhasil ditambah.`, variant: "default" });
+
+        // Add to production history
+        const newOrder: ProductionOrder = {
+            id: `PO-${Date.now()}`,
+            date: new Date().toISOString(),
+            productName: selectedProduct.name,
+            quantity: quantityToProduce,
+            status: 'Selesai',
+        };
+        setProductionHistory(prev => [newOrder, ...prev]);
+
+        form.reset();
+    };
+
+
+    return (
+        <div className="grid gap-8 md:grid-cols-3">
+            <div className="md:col-span-1">
+                 <Card>
+                    <CardHeader>
+                        <CardTitle>Buat Perintah Produksi</CardTitle>
+                        <CardDescription>Pilih produk dan jumlah yang akan diproduksi.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <Form {...form}>
+                            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                                <FormField
+                                    control={form.control}
+                                    name="productId"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>Pilih Produk</FormLabel>
+                                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                                <FormControl>
+                                                    <SelectTrigger>
+                                                        <SelectValue placeholder="Pilih produk jadi..." />
+                                                    </SelectTrigger>
+                                                </FormControl>
+                                                <SelectContent>
+                                                    {productsWithBom.map(p => (
+                                                        <SelectItem key={p.id} value={p.id}>
+                                                            {p.name}
+                                                        </SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                                <FormField
+                                    control={form.control}
+                                    name="quantity"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>Jumlah Produksi</FormLabel>
+                                            <FormControl>
+                                                <Input type="number" placeholder="0" {...field} />
+                                            </FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                                <Button type="submit" className="w-full">
+                                    <Factory className="mr-2 h-4 w-4"/>
+                                    Mulai Produksi
+                                </Button>
+                            </form>
+                        </Form>
+                    </CardContent>
+                </Card>
+            </div>
+            <div className="md:col-span-2">
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Riwayat Produksi</CardTitle>
+                        <CardDescription>Daftar perintah produksi yang telah selesai.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                       <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Tanggal</TableHead>
+                                    <TableHead>Nama Produk</TableHead>
+                                    <TableHead className="text-right">Jumlah</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {productionHistory.length > 0 ? (
+                                    productionHistory.map(order => (
+                                        <TableRow key={order.id}>
+                                            <TableCell>{format(new Date(order.date), "dd MMM yyyy, HH:mm")}</TableCell>
+                                            <TableCell className="font-medium">{order.productName}</TableCell>
+                                            <TableCell className="text-right">{order.quantity}</TableCell>
+                                        </TableRow>
+                                    ))
+                                ) : (
+                                    <TableRow>
+                                        <TableCell colSpan={3} className="h-24 text-center">
+                                            Belum ada riwayat produksi.
+                                        </TableCell>
+                                    </TableRow>
+                                )}
+                            </TableBody>
+                        </Table>
+                    </CardContent>
+                </Card>
+            </div>
+        </div>
+    );
+}
 
 function BomTab() {
   const context = useContext(ProductContext);
@@ -104,7 +280,7 @@ function BomTab() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Kebutuhan Material</CardTitle>
+        <CardTitle>Kebutuhan Material (Bill of Materials)</CardTitle>
         <CardDescription>
           Pilih produk untuk melihat kebutuhan material untuk membuat 1 unit produk.
         </CardDescription>
@@ -443,14 +619,18 @@ export default function ProduksiPage() {
       <div>
         <h1 className="text-3xl font-bold">Produksi & Material</h1>
         <p className="text-muted-foreground mt-2">
-          Lihat kebutuhan material (BOM) dan kelola stok material mentah.
+          Buat perintah produksi, lihat kebutuhan material (BOM), dan kelola stok material.
         </p>
       </div>
-      <Tabs defaultValue="stok">
+      <Tabs defaultValue="order">
         <TabsList className="mb-4">
-          <TabsTrigger value="bom">Kebutuhan Material</TabsTrigger>
+          <TabsTrigger value="order">Perintah Produksi</TabsTrigger>
+          <TabsTrigger value="bom">Kebutuhan Material (BOM)</TabsTrigger>
           <TabsTrigger value="stok">Stok Material</TabsTrigger>
         </TabsList>
+        <TabsContent value="order">
+          <ProductionOrderTab />
+        </TabsContent>
         <TabsContent value="bom">
           <BomTab />
         </TabsContent>

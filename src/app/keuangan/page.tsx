@@ -79,8 +79,8 @@ export default function KeuanganPage() {
   if (!productContext || !materialContext) {
     throw new Error("KeuanganPage must be used within a ProductProvider and MaterialProvider");
   }
-  const { products } = productContext;
-  const { addStock, reduceStockFromBom } = materialContext;
+  const { products, reduceProductStock } = productContext;
+  const { addStock } = materialContext;
   
   const allBomMaterials = useMemo(() => {
     const materialMap = new Map<string, { name: string, unit: string }>();
@@ -115,13 +115,16 @@ export default function KeuanganPage() {
             toast({ title: "Error", description: "Harap pilih produk dan masukkan jumlah.", variant: "destructive" });
             return;
         }
-        finalDescription = `Penjualan ${selectedProduct.name} (${saleQuantity} ${selectedProduct.unit})`;
-        const reduceResult = reduceStockFromBom(selectedProduct.bom, saleQuantity);
-        if (!reduceResult.success) {
-            toast({ title: "Error Stok Tidak Cukup", description: reduceResult.message, variant: "destructive" });
+        
+        const stockCheck = reduceProductStock(selectedProduct.id, saleQuantity);
+        if (!stockCheck.success) {
+            toast({ title: "Stok Tidak Cukup", description: stockCheck.message, variant: "destructive" });
             return;
         }
-        toast({ title: "Info", description: "Stok material telah dikurangi.", variant: "default" });
+        
+        finalDescription = `Penjualan ${selectedProduct.name} (${saleQuantity} ${selectedProduct.unit})`;
+        toast({ title: "Info", description: "Stok barang jadi telah dikurangi.", variant: "default" });
+
     } else {
         if (!description) {
             toast({ title: "Error", description: "Keterangan tidak boleh kosong.", variant: "destructive" });
@@ -360,5 +363,5 @@ function TransactionTable({ transactions, title }: { transactions: typeof initia
         </Table>
       </CardContent>
     </Card>
-  )
+  );
 }

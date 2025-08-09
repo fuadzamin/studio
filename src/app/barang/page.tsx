@@ -94,6 +94,7 @@ export default function BarangPage() {
       code: "",
       purchasePrice: 0,
       salePrice: 0,
+      stock: 0,
       unit: "",
       bom: [],
     },
@@ -123,6 +124,7 @@ export default function BarangPage() {
       code: "",
       purchasePrice: 0,
       salePrice: 0,
+      stock: 0,
       unit: "",
       bom: [],
     });
@@ -273,6 +275,19 @@ export default function BarangPage() {
                                         </FormItem>
                                     )}
                                     />
+                                     <FormField
+                                    control={form.control}
+                                    name="stock"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                        <FormLabel>Stok Awal</FormLabel>
+                                        <FormControl>
+                                            <Input type="number" {...field} />
+                                        </FormControl>
+                                        <FormMessage />
+                                        </FormItem>
+                                    )}
+                                    />
                                     <FormField
                                     control={form.control}
                                     name="unit"
@@ -376,6 +391,7 @@ export default function BarangPage() {
                 <TableHead>Nama Produk</TableHead>
                 <TableHead>Kode</TableHead>
                 <TableHead>Harga Jual</TableHead>
+                <TableHead>Stok Barang Jadi</TableHead>
                 <TableHead>
                   <span className="sr-only">Aksi</span>
                 </TableHead>
@@ -393,6 +409,7 @@ export default function BarangPage() {
                       minimumFractionDigits: 0,
                     }).format(product.salePrice)}
                   </TableCell>
+                  <TableCell>{product.stock} {product.unit}</TableCell>
                   <TableCell>
                       <AlertDialog open={isDeleteDialogOpen && selectedProduct?.id === product.id} onOpenChange={setDeleteDialogOpen}>
                         <DropdownMenu>
