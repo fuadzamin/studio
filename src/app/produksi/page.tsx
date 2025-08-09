@@ -9,7 +9,7 @@ import {
   MaterialFormValues,
   materialSchema,
 } from "@/contexts/MaterialContext";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 
@@ -56,7 +56,7 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { MoreHorizontal, PlusCircle, Trash2, Edit, Factory } from "lucide-react";
+import { MoreHorizontal, PlusCircle, Trash2, Edit, Factory, Package, AlertCircle } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -76,6 +76,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { format } from "date-fns";
+import { Badge } from "@/components/ui/badge";
 
 
 type ProductionOrder = {
@@ -103,7 +104,7 @@ function ProductionOrderTab() {
     }
 
     const { products, increaseProductStock } = productContext;
-    const { reduceStockFromBom } = materialContext;
+    const { materials, reduceStockFromBom } = materialContext;
 
     const [productionHistory, setProductionHistory] = useState<ProductionOrder[]>([]);
 
@@ -116,6 +117,33 @@ function ProductionOrderTab() {
     });
 
     const productsWithBom = products.filter(p => p.bom && p.bom.length > 0);
+    
+    // Watch for changes in form fields
+    const watchedProductId = useWatch({ control: form.control, name: "productId" });
+    const watchedQuantity = useWatch({ control: form.control, name: "quantity" });
+
+    const materialRequirements = useMemo(() => {
+        if (!watchedProductId || !watchedQuantity || watchedQuantity <= 0) {
+            return [];
+        }
+        const product = products.find(p => p.id === watchedProductId);
+        if (!product || !product.bom) {
+            return [];
+        }
+        return product.bom.map(bomItem => {
+            const materialInStock = materials.find(m => m.name === bomItem.materialName);
+            const requiredQuantity = bomItem.quantity * watchedQuantity;
+            return {
+                name: bomItem.materialName,
+                required: requiredQuantity,
+                stock: materialInStock?.stock || 0,
+                unit: bomItem.unit,
+                isSufficient: (materialInStock?.stock || 0) >= requiredQuantity,
+            };
+        });
+    }, [watchedProductId, watchedQuantity, products, materials]);
+
+    const isProductionPossible = materialRequirements.every(item => item.isSufficient);
 
     const onSubmit = (data: ProductionOrderFormValues) => {
         const selectedProduct = products.find(p => p.id === data.productId);
@@ -161,11 +189,11 @@ function ProductionOrderTab() {
 
     return (
         <div className="grid gap-8 md:grid-cols-3">
-            <div className="md:col-span-1">
+            <div className="md:col-span-1 flex flex-col gap-8">
                  <Card>
                     <CardHeader>
                         <CardTitle>Buat Perintah Produksi</CardTitle>
-                        <CardDescription>Pilih produk dan jumlah yang akan diproduksi. Kebutuhan material akan divalidasi saat produksi dimulai.</CardDescription>
+                        <CardDescription>Pilih produk dan jumlah yang akan diproduksi.</CardDescription>
                     </CardHeader>
                     <CardContent>
                         <Form {...form}>
@@ -207,7 +235,7 @@ function ProductionOrderTab() {
                                         </FormItem>
                                     )}
                                 />
-                                <Button type="submit" className="w-full">
+                                <Button type="submit" className="w-full" disabled={!isProductionPossible || materialRequirements.length === 0}>
                                     <Factory className="mr-2 h-4 w-4"/>
                                     Mulai Produksi
                                 </Button>
@@ -215,6 +243,47 @@ function ProductionOrderTab() {
                         </Form>
                     </CardContent>
                 </Card>
+                 {materialRequirements.length > 0 && (
+                     <Card>
+                         <CardHeader>
+                             <CardTitle className="flex items-center text-lg">
+                                 <Package className="mr-2 h-5 w-5" />
+                                 Kebutuhan Material
+                             </CardTitle>
+                             <CardDescription>
+                                 Berikut adalah material yang dibutuhkan untuk memproduksi {watchedQuantity} unit.
+                             </CardDescription>
+                         </CardHeader>
+                         <CardContent>
+                             <Table>
+                                 <TableHeader>
+                                     <TableRow>
+                                         <TableHead>Material</TableHead>
+                                         <TableHead className="text-right">Butuh</TableHead>
+                                         <TableHead className="text-right">Stok</TableHead>
+                                     </TableRow>
+                                 </TableHeader>
+                                 <TableBody>
+                                     {materialRequirements.map(item => (
+                                         <TableRow key={item.name} className={!item.isSufficient ? "bg-destructive/10" : ""}>
+                                             <TableCell className="font-medium">{item.name}</TableCell>
+                                             <TableCell className="text-right">{item.required} {item.unit}</TableCell>
+                                             <TableCell className={`text-right ${item.isSufficient ? 'text-muted-foreground' : 'text-destructive font-bold'}`}>
+                                                {item.stock} {item.unit}
+                                             </TableCell>
+                                         </TableRow>
+                                     ))}
+                                 </TableBody>
+                             </Table>
+                             {!isProductionPossible && (
+                                <div className="mt-4 p-3 rounded-md bg-destructive/10 text-destructive text-sm flex items-center gap-2">
+                                     <AlertCircle className="h-4 w-4" />
+                                     <span>Stok material tidak mencukupi untuk memulai produksi.</span>
+                                </div>
+                             )}
+                         </CardContent>
+                     </Card>
+                 )}
             </div>
             <div className="md:col-span-2">
                 <Card>
@@ -645,3 +714,5 @@ export default function ProduksiPage() {
     </div>
   );
 }
+
+      
