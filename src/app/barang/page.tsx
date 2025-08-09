@@ -159,7 +159,7 @@ export default function BarangPage() {
   };
 
 
-  const onSubmit = async (data: ProductFormValues) => {
+const onSubmit = async (data: ProductFormValues) => {
     const isEditing = !!selectedProduct;
      if (!isEditing && products.some(p => p.code === data.code)) {
         form.setError("code", { type: "manual", message: "Kode produk sudah ada." });
@@ -169,28 +169,21 @@ export default function BarangPage() {
     try {
         if (isEditing && selectedProduct) {
             await updateProduct(selectedProduct.id, data);
-            toast({
-                title: "Sukses",
-                description: "Produk berhasil diperbarui.",
-            });
+            // ... toast sukses dan tutup dialog
         } else {
-            await addProduct(data);
-            toast({
-                title: "Sukses",
-                description: "Produk baru berhasil ditambahkan.",
-            });
+            await addProduct(data); // <-- Ini fungsi untuk menambah produk baru
+            // ... toast sukses dan tutup dialog
         }
         setAddEditDialogOpen(false);
         setSelectedProduct(null);
     } catch (error) {
         toast({
             title: "Gagal",
-            description: "Terjadi kesalahan saat menyimpan produk.",
+            description: "Terjadi kesalahan saat menyimpan produk.", // <-- Pesan error ini yang muncul
             variant: "destructive",
         });
     }
   };
-
 
   return (
     <div className="space-y-8">
