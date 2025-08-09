@@ -9,7 +9,7 @@ import {
   MaterialFormValues,
   materialSchema,
 } from "@/contexts/MaterialContext";
-import { useForm, useWatch } from "react-hook-form";
+import { useForm, useWatch, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 
@@ -56,7 +56,7 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { MoreHorizontal, PlusCircle, Trash2, Edit, Factory, Package, AlertCircle, ChevronDown, ChevronUp } from "lucide-react";
+import { MoreHorizontal, PlusCircle, Trash2, Edit, Factory, Package, AlertCircle, ChevronDown, ChevronUp, MinusCircle } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -86,7 +86,7 @@ type ProductionOrder = {
     date: string;
     productName: string;
     quantity: number;
-    status: 'Selesai';
+    status: 'Selesai' | 'Sedang Diproses' | 'Dibatalkan';
     materialsUsed: {
         materialName: string;
         quantity: number;
@@ -100,6 +100,19 @@ const productionOrderSchema = z.object({
 });
 
 type ProductionOrderFormValues = z.infer<typeof productionOrderSchema>;
+
+const editProductionHistorySchema = z.object({
+    quantity: z.coerce.number().min(1, "Jumlah harus lebih dari 0"),
+    status: z.enum(['Selesai', 'Sedang Diproses', 'Dibatalkan']),
+    materialsUsed: z.array(z.object({
+        materialName: z.string().min(1, "Nama material tidak boleh kosong"),
+        quantity: z.coerce.number().min(0, "Jumlah tidak boleh negatif"),
+        unit: z.string().min(1, "Satuan harus diisi")
+    }))
+});
+
+type EditProductionHistoryFormValues = z.infer<typeof editProductionHistorySchema>;
+
 
 type ProductionSuccessData = Omit<ProductionOrder, 'id' | 'status'>;
 
@@ -313,11 +326,20 @@ function ProductionHistoryTab({ history, setHistory }: { history: ProductionOrde
     const [isEditDialogOpen, setEditDialogOpen] = useState(false);
     const [isDeleteDialogOpen, setDeleteDialogOpen] = useState(false);
     const [selectedOrder, setSelectedOrder] = useState<ProductionOrder | null>(null);
-    const [editedQuantity, setEditedQuantity] = useState(0);
+    
+    const form = useForm<EditProductionHistoryFormValues>();
+    const { fields, append, remove } = useFieldArray({
+        control: form.control,
+        name: "materialsUsed"
+    });
 
     const handleEditClick = (order: ProductionOrder) => {
         setSelectedOrder(order);
-        setEditedQuantity(order.quantity);
+        form.reset({
+            quantity: order.quantity,
+            status: order.status,
+            materialsUsed: order.materialsUsed
+        });
         setEditDialogOpen(true);
     };
 
@@ -335,17 +357,19 @@ function ProductionHistoryTab({ history, setHistory }: { history: ProductionOrde
         }
     };
     
-    const handleSaveEdit = () => {
-        if (selectedOrder && editedQuantity > 0) {
-             setHistory(prev => prev.map(o => o.id === selectedOrder.id ? {...o, quantity: editedQuantity} : o));
+    const onSaveEditSubmit = (data: EditProductionHistoryFormValues) => {
+        if (selectedOrder) {
+             setHistory(prev => prev.map(o => o.id === selectedOrder.id ? {
+                ...o, 
+                quantity: data.quantity,
+                status: data.status,
+                materialsUsed: data.materialsUsed
+             } : o));
              toast({ title: "Sukses", description: "Riwayat produksi berhasil diperbarui." });
              setEditDialogOpen(false);
              setSelectedOrder(null);
-        } else {
-             toast({ title: "Gagal", description: "Jumlah harus lebih besar dari 0.", variant: "destructive" });
         }
     };
-
 
     return (
         <Card>
@@ -407,27 +431,86 @@ function ProductionHistoryTab({ history, setHistory }: { history: ProductionOrde
                                                               </AlertDialogTrigger>
                                                             </DropdownMenuContent>
                                                           </DropdownMenu>
-                                                        <DialogContent>
-                                                            <DialogHeader>
-                                                                <DialogTitle>Edit Riwayat Produksi</DialogTitle>
-                                                                <DialogDescription>
-                                                                    Ubah jumlah produksi. Perubahan ini tidak akan mempengaruhi stok.
-                                                                </DialogDescription>
-                                                            </DialogHeader>
-                                                            <div className="grid gap-4 py-4">
-                                                                <div className="grid grid-cols-4 items-center gap-4">
-                                                                    <Label htmlFor="product-name" className="text-right">Produk</Label>
-                                                                    <Input id="product-name" value={selectedOrder?.productName} disabled className="col-span-3"/>
+                                                        <DialogContent className="sm:max-w-2xl">
+                                                            <Form {...form}>
+                                                            <form onSubmit={form.handleSubmit(onSaveEditSubmit)}>
+                                                                <DialogHeader>
+                                                                    <DialogTitle>Edit Riwayat Produksi</DialogTitle>
+                                                                    <DialogDescription>
+                                                                        Ubah detail riwayat produksi. Perubahan ini tidak akan mempengaruhi stok.
+                                                                    </DialogDescription>
+                                                                </DialogHeader>
+                                                                <div className="grid gap-4 py-4 max-h-[70vh] overflow-y-auto pr-4">
+                                                                    <FormField
+                                                                        control={form.control}
+                                                                        name="quantity"
+                                                                        render={({ field }) => (
+                                                                            <FormItem>
+                                                                                <FormLabel>Jumlah Produksi</FormLabel>
+                                                                                <FormControl><Input type="number" {...field} /></FormControl>
+                                                                                <FormMessage />
+                                                                            </FormItem>
+                                                                        )}
+                                                                    />
+                                                                     <FormField
+                                                                        control={form.control}
+                                                                        name="status"
+                                                                        render={({ field }) => (
+                                                                            <FormItem>
+                                                                                <FormLabel>Status</FormLabel>
+                                                                                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                                                                    <FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl>
+                                                                                    <SelectContent>
+                                                                                        <SelectItem value="Selesai">Selesai</SelectItem>
+                                                                                        <SelectItem value="Sedang Diproses">Sedang Diproses</SelectItem>
+                                                                                        <SelectItem value="Dibatalkan">Dibatalkan</SelectItem>
+                                                                                    </SelectContent>
+                                                                                </Select>
+                                                                                <FormMessage />
+                                                                            </FormItem>
+                                                                        )}
+                                                                    />
+                                                                    
+                                                                    <div>
+                                                                        <h4 className="font-medium mb-2">Material yang Digunakan</h4>
+                                                                        <div className="space-y-2">
+                                                                            {fields.map((item, index) => (
+                                                                                <div key={item.id} className="grid grid-cols-12 items-start gap-2">
+                                                                                    <FormField
+                                                                                        control={form.control}
+                                                                                        name={`materialsUsed.${index}.materialName`}
+                                                                                        render={({ field }) => (
+                                                                                            <FormItem className="col-span-5"><FormControl><Input placeholder="Nama Material" {...field} /></FormControl><FormMessage /></FormItem>
+                                                                                        )}
+                                                                                    />
+                                                                                     <FormField
+                                                                                        control={form.control}
+                                                                                        name={`materialsUsed.${index}.quantity`}
+                                                                                        render={({ field }) => (
+                                                                                            <FormItem className="col-span-3"><FormControl><Input type="number" placeholder="Jumlah" {...field} /></FormControl><FormMessage /></FormItem>
+                                                                                        )}
+                                                                                    />
+                                                                                     <FormField
+                                                                                        control={form.control}
+                                                                                        name={`materialsUsed.${index}.unit`}
+                                                                                        render={({ field }) => (
+                                                                                            <FormItem className="col-span-3"><FormControl><Input placeholder="Satuan" {...field} /></FormControl><FormMessage /></FormItem>
+                                                                                        )}
+                                                                                    />
+                                                                                    <Button type="button" variant="ghost" size="icon" className="col-span-1 mt-1" onClick={() => remove(index)}>
+                                                                                        <MinusCircle className="h-4 w-4 text-destructive"/>
+                                                                                    </Button>
+                                                                                </div>
+                                                                            ))}
+                                                                        </div>
+                                                                    </div>
                                                                 </div>
-                                                                <div className="grid grid-cols-4 items-center gap-4">
-                                                                    <Label htmlFor="quantity" className="text-right">Jumlah</Label>
-                                                                    <Input id="quantity" type="number" value={editedQuantity} onChange={(e) => setEditedQuantity(Number(e.target.value))} className="col-span-3"/>
-                                                                </div>
-                                                            </div>
-                                                            <DialogFooter>
-                                                                <Button onClick={() => setEditDialogOpen(false)} variant="outline">Batal</Button>
-                                                                <Button onClick={handleSaveEdit}>Simpan Perubahan</Button>
-                                                            </DialogFooter>
+                                                                <DialogFooter>
+                                                                    <Button onClick={() => setEditDialogOpen(false)} variant="outline">Batal</Button>
+                                                                    <Button type="submit">Simpan Perubahan</Button>
+                                                                </DialogFooter>
+                                                                </form>
+                                                            </Form>
                                                         </DialogContent>
                                                     </Dialog>
                                                     <AlertDialogContent>
@@ -855,9 +938,9 @@ function MaterialStockTab() {
 export default function ProduksiPage() {
     const [productionHistory, setProductionHistory] = useState<ProductionOrder[]>([]);
 
-    const handleAddProductionHistory = (order: ProductionSuccessData) => {
+    const handleAddProductionHistory = (orderData: ProductionSuccessData) => {
         const newOrder: ProductionOrder = {
-            ...order,
+            ...orderData,
             id: `prod_${new Date().getTime()}`,
             status: 'Selesai'
         };
@@ -895,5 +978,7 @@ export default function ProduksiPage() {
     </div>
   );
 }
+
+    
 
     
