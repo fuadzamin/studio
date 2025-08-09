@@ -106,8 +106,6 @@ function ProductionOrderTab() {
     const { products, increaseProductStock } = productContext;
     const { materials, reduceStockFromBom } = materialContext;
 
-    const [productionHistory, setProductionHistory] = useState<ProductionOrder[]>([]);
-
     const form = useForm<ProductionOrderFormValues>({
         resolver: zodResolver(productionOrderSchema),
         defaultValues: {
@@ -173,22 +171,12 @@ function ProductionOrderTab() {
         increaseProductStock(selectedProduct.id, quantityToProduce);
         toast({ title: "Sukses", description: `Stok ${selectedProduct.name} berhasil ditambah.`, variant: "default" });
 
-        // Add to production history
-        const newOrder: ProductionOrder = {
-            id: `PO-${Date.now()}`,
-            date: new Date().toISOString(),
-            productName: selectedProduct.name,
-            quantity: quantityToProduce,
-            status: 'Selesai',
-        };
-        setProductionHistory(prev => [newOrder, ...prev]);
-
         form.reset({ productId: "", quantity: 0 });
     };
 
 
     return (
-        <div className="grid gap-8 md:grid-cols-3">
+        <div className="grid gap-8 md:grid-cols-2">
             <div className="md:col-span-1 flex flex-col gap-8">
                  <Card>
                     <CardHeader>
@@ -244,39 +232,52 @@ function ProductionOrderTab() {
                     </CardContent>
                 </Card>
             </div>
-            <div className="md:col-span-2">
+            <div className="md:col-span-1">
                 <Card>
                     <CardHeader>
-                        <CardTitle>Riwayat Produksi</CardTitle>
-                        <CardDescription>Daftar perintah produksi yang telah selesai.</CardDescription>
+                         <CardTitle className="flex items-center gap-2">
+                             <Package className="h-5 w-5"/> Kebutuhan Material
+                        </CardTitle>
+                        <CardDescription>
+                           Berikut adalah rincian material yang dibutuhkan untuk produksi.
+                        </CardDescription>
                     </CardHeader>
                     <CardContent>
-                       <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>Tanggal</TableHead>
-                                    <TableHead>Nama Produk</TableHead>
-                                    <TableHead className="text-right">Jumlah</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {productionHistory.length > 0 ? (
-                                    productionHistory.map(order => (
-                                        <TableRow key={order.id}>
-                                            <TableCell>{format(new Date(order.date), "dd MMM yyyy, HH:mm")}</TableCell>
-                                            <TableCell className="font-medium">{order.productName}</TableCell>
-                                            <TableCell className="text-right">{order.quantity}</TableCell>
-                                        </TableRow>
-                                    ))
-                                ) : (
+                        {materialRequirements.length > 0 ? (
+                             <Table>
+                                <TableHeader>
                                     <TableRow>
-                                        <TableCell colSpan={3} className="h-24 text-center">
-                                            Belum ada riwayat produksi.
-                                        </TableCell>
+                                        <TableHead>Nama Material</TableHead>
+                                        <TableHead className="text-right">Dibutuhkan</TableHead>
+                                        <TableHead className="text-right">Tersedia</TableHead>
                                     </TableRow>
-                                )}
-                            </TableBody>
-                        </Table>
+                                </TableHeader>
+                                <TableBody>
+                                    {materialRequirements.map(item => (
+                                        <TableRow key={item.name}>
+                                            <TableCell className="font-medium">{item.name}</TableCell>
+                                            <TableCell className="text-right">{item.required} {item.unit}</TableCell>
+                                            <TableCell className={`text-right font-semibold ${item.isSufficient ? 'text-green-600' : 'text-red-600'}`}>
+                                                {item.stock} {item.unit}
+                                            </TableCell>
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
+                        ) : (
+                            <div className="text-center py-10 text-muted-foreground">
+                                <p>Pilih produk dan jumlah untuk melihat kebutuhan material.</p>
+                            </div>
+                        )}
+                        {!isProductionPossible && materialRequirements.length > 0 && (
+                            <div className="mt-4 p-3 rounded-md bg-destructive/10 border border-destructive/20 text-destructive text-sm flex items-start gap-2">
+                                <AlertCircle className="h-5 w-5 mt-0.5 shrink-0"/>
+                                <div>
+                                    <p className="font-semibold">Stok Material Tidak Cukup!</p>
+                                    <p>Produksi tidak dapat dilanjutkan karena beberapa stok material tidak mencukupi kebutuhan.</p>
+                                </div>
+                            </div>
+                        )}
                     </CardContent>
                 </Card>
             </div>
