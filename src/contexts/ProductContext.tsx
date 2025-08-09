@@ -1,7 +1,8 @@
 "use client";
 
-import { createContext, useState, ReactNode, useCallback } from 'react';
+import { createContext, useState, ReactNode, useCallback, useEffect } from 'react';
 import * as z from "zod";
+import { supabase } from '@/lib/supabase';
 
 // --- Zod Schemas ---
 const bomItemSchema = z.object({
@@ -25,142 +26,99 @@ export const productSchema = z.object({
 export type ProductFormValues = z.infer<typeof productSchema>;
 export type Product = ProductFormValues & { id: string };
 
-// --- Initial Data ---
-const initialProducts: Product[] = [
-  {
-    id: "1",
-    name: "Nurse Call Unit",
-    code: "NC001",
-    purchasePrice: 1500000,
-    salePrice: 1750000,
-    stock: 10,
-    unit: "pcs",
-    bom: [
-        { materialName: "Mainboard V1.2", quantity: 1, unit: "pcs" },
-        { materialName: "Casing Box", quantity: 1, unit: "pcs" },
-        { materialName: "Kabel Power", quantity: 1, unit: "meter" },
-    ]
-  },
-  {
-    id: "2",
-    name: "Digital Mosque Clock",
-    code: "JDM01",
-    purchasePrice: 2000000,
-    salePrice: 2500000,
-    stock: 5,
-    unit: "pcs",
-     bom: [
-        { materialName: "Panel P10", quantity: 6, unit: "pcs" },
-        { materialName: "Controller JWS", quantity: 1, unit: "pcs" },
-        { materialName: "Power Supply 5V", quantity: 1, unit: "pcs" },
-    ]
-  },
-  {
-    id: "3",
-    name: "Queuing Machine Display",
-    code: "QM003",
-    purchasePrice: 800000,
-    salePrice: 1000000,
-    stock: 20,
-    unit: "pcs",
-    bom: []
-  },
-  {
-    id: "4",
-    name: "LED Running Text Board",
-    code: "LED-R-5M",
-    purchasePrice: 500000,
-    salePrice: 650000,
-    stock: 15,
-    unit: "roll",
-    bom: []
-  },
-   {
-    id: "5",
-    name: "Power Supply 12V 5A",
-    code: "PSU-12-5",
-    purchasePrice: 75000,
-    salePrice: 100000,
-    stock: 50,
-    unit: "pcs",
-    bom: []
-  },
-];
-
-
 // --- Context Definition ---
 interface ProductContextType {
   products: Product[];
-  addProduct: (productData: ProductFormValues) => void;
-  updateProduct: (productId: string, productData: ProductFormValues) => void;
-  deleteProduct: (productId: string) => void;
-  increaseProductStock: (productId: string, quantity: number) => void;
-  reduceProductStock: (productId: string, quantity: number) => { success: boolean; message: string };
+  addProduct: (productData: ProductFormValues) => Promise<void>;
+  updateProduct: (productId: string, productData: ProductFormValues) => Promise<void>;
+  deleteProduct: (productId: string) => Promise<void>;
+  increaseProductStock: (productId: string, quantity: number) => Promise<void>;
+  reduceProductStock: (productId: string, quantity: number) => Promise<{ success: boolean; message: string }>;
+  loading: boolean;
+  error: string | null;
 }
 
 export const ProductContext = createContext<ProductContextType | undefined>(undefined);
 
 // --- Provider Component ---
 export const ProductProvider = ({ children }: { children: ReactNode }) => {
-  const [products, setProducts] = useState<Product[]>(initialProducts);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const addProduct = (productData: ProductFormValues) => {
-    const newProduct: Product = {
-      ...productData,
-      id: `prod_${new Date().getTime()}_${Math.random().toString(36).substring(7)}`,
-    };
-    setProducts(prevProducts => [...prevProducts, newProduct]);
+  const fetchProducts = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const { data, error } = await supabase.from('products').select('*').order('name', { ascending: true });
+      if (error) throw error;
+      setProducts(data || []);
+    } catch (err: any) {
+      setError(err.message);
+      console.error("Error fetching products:", err);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchProducts();
+  }, [fetchProducts]);
+
+  const addProduct = async (productData: ProductFormValues) => {
+    const { id, ...rest } = productData; // Don't send undefined id to supabase
+    const { data, error } = await supabase.from('products').insert([rest]).select();
+    if (error) {
+        setError(error.message);
+        throw error;
+    }
+    if (data) {
+        await fetchProducts(); // Refetch to get the latest list
+    }
   };
 
-  const updateProduct = (productId: string, productData: ProductFormValues) => {
-    setProducts(prevProducts =>
-      prevProducts.map(p =>
-        p.id === productId ? { ...p, ...productData, id: p.id } : p
-      )
-    );
+  const updateProduct = async (productId: string, productData: ProductFormValues) => {
+    const { id, ...rest } = productData;
+    const { data, error } = await supabase.from('products').update(rest).eq('id', productId).select();
+     if (error) {
+        setError(error.message);
+        throw error;
+    }
+    await fetchProducts();
   };
 
-  const deleteProduct = (productId: string) => {
-    setProducts(prevProducts => prevProducts.filter(p => p.id !== productId));
+  const deleteProduct = async (productId: string) => {
+    const { error } = await supabase.from('products').delete().eq('id', productId);
+    if (error) {
+        setError(error.message);
+        throw error;
+    }
+    await fetchProducts();
   };
   
-  const increaseProductStock = useCallback((productId: string, quantity: number) => {
-    setProducts(prev =>
-      prev.map(p =>
-        p.id === productId ? { ...p, stock: p.stock + quantity } : p
-      )
-    );
-  }, []);
+  const increaseProductStock = useCallback(async (productId: string, quantity: number) => {
+    const product = products.find(p => p.id === productId);
+    if (product) {
+        const newStock = product.stock + quantity;
+        await updateProduct(productId, {...product, stock: newStock});
+    }
+  }, [products]);
 
-  const reduceProductStock = useCallback((productId: string, quantity: number): { success: boolean, message: string } => {
-    let success = false;
-    let message = "";
-    
-    setProducts(prev => {
-        const product = prev.find(p => p.id === productId);
-        if (!product) {
-            message = "Produk tidak ditemukan.";
-            success = false;
-            return prev;
-        }
-        if (product.stock < quantity) {
-            message = `Stok ${product.name} tidak mencukupi. Tersedia: ${product.stock}, Dibutuhkan: ${quantity}.`;
-            success = false;
-            return prev;
-        }
-
-        success = true;
-        message = "Stok produk berhasil dikurangi.";
-        return prev.map(p =>
-            p.id === productId ? { ...p, stock: p.stock - quantity } : p
-        );
-    });
-
-    return { success, message };
-  }, []);
+  const reduceProductStock = useCallback(async (productId: string, quantity: number): Promise<{ success: boolean, message: string }> => {
+    const product = products.find(p => p.id === productId);
+    if (!product) {
+        return { success: false, message: "Produk tidak ditemukan." };
+    }
+    if (product.stock < quantity) {
+        return { success: false, message: `Stok ${product.name} tidak mencukupi. Tersedia: ${product.stock}, Dibutuhkan: ${quantity}.` };
+    }
+    const newStock = product.stock - quantity;
+    await updateProduct(productId, {...product, stock: newStock});
+    return { success: true, message: "Stok produk berhasil dikurangi." };
+  }, [products]);
 
   return (
-    <ProductContext.Provider value={{ products, addProduct, updateProduct, deleteProduct, increaseProductStock, reduceProductStock }}>
+    <ProductContext.Provider value={{ products, addProduct, updateProduct, deleteProduct, increaseProductStock, reduceProductStock, loading, error }}>
       {children}
     </ProductContext.Provider>
   );

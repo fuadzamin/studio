@@ -70,6 +70,7 @@ import { Separator } from "@/components/ui/separator";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
 import { ProductContext, Product, ProductFormValues, productSchema } from "@/contexts/ProductContext";
+import { Skeleton } from "@/components/ui/skeleton";
 
 
 export default function BarangPage() {
@@ -77,7 +78,7 @@ export default function BarangPage() {
   if (!context) {
     throw new Error("BarangPage must be used within a ProductProvider");
   }
-  const { products, addProduct, updateProduct, deleteProduct } = context;
+  const { products, addProduct, updateProduct, deleteProduct, loading } = context;
 
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
@@ -136,42 +137,58 @@ export default function BarangPage() {
     setDeleteDialogOpen(true);
   };
 
-  const handleDeleteConfirm = () => {
+  const handleDeleteConfirm = async () => {
     if (selectedProduct) {
-        deleteProduct(selectedProduct.id);
-        toast({
-            title: "Sukses",
-            description: `Produk "${selectedProduct.name}" berhasil dihapus.`,
-            variant: "default",
-        });
-        setDeleteDialogOpen(false);
-        setSelectedProduct(null);
+        try {
+            await deleteProduct(selectedProduct.id);
+            toast({
+                title: "Sukses",
+                description: `Produk "${selectedProduct.name}" berhasil dihapus.`,
+                variant: "default",
+            });
+            setDeleteDialogOpen(false);
+            setSelectedProduct(null);
+        } catch (error) {
+             toast({
+                title: "Gagal",
+                description: "Terjadi kesalahan saat menghapus produk.",
+                variant: "destructive",
+            });
+        }
     }
   };
 
 
-  const onSubmit = (data: ProductFormValues) => {
+  const onSubmit = async (data: ProductFormValues) => {
     const isEditing = !!selectedProduct;
      if (!isEditing && products.some(p => p.code === data.code)) {
         form.setError("code", { type: "manual", message: "Kode produk sudah ada." });
         return;
     }
     
-    if (isEditing && selectedProduct) {
-      updateProduct(selectedProduct.id, data);
-      toast({
-        title: "Sukses",
-        description: "Produk berhasil diperbarui.",
-      });
-    } else {
-      addProduct(data);
-       toast({
-        title: "Sukses",
-        description: "Produk baru berhasil ditambahkan.",
-      });
+    try {
+        if (isEditing && selectedProduct) {
+            await updateProduct(selectedProduct.id, data);
+            toast({
+                title: "Sukses",
+                description: "Produk berhasil diperbarui.",
+            });
+        } else {
+            await addProduct(data);
+            toast({
+                title: "Sukses",
+                description: "Produk baru berhasil ditambahkan.",
+            });
+        }
+        setAddEditDialogOpen(false);
+        setSelectedProduct(null);
+    } catch (error) {
+        toast({
+            title: "Gagal",
+            description: "Terjadi kesalahan saat menyimpan produk.",
+            variant: "destructive",
+        });
     }
-    setAddEditDialogOpen(false);
-    setSelectedProduct(null);
   };
 
 
@@ -398,58 +415,70 @@ export default function BarangPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredProducts.map((product) => (
-                <TableRow key={product.id}>
-                  <TableCell className="font-medium">{product.name}</TableCell>
-                  <TableCell>{product.code}</TableCell>
-                  <TableCell>
-                    {new Intl.NumberFormat("id-ID", {
-                      style: "currency",
-                      currency: "IDR",
-                      minimumFractionDigits: 0,
-                    }).format(product.salePrice)}
-                  </TableCell>
-                  <TableCell>{product.stock} {product.unit}</TableCell>
-                  <TableCell>
-                      <AlertDialog open={isDeleteDialogOpen && selectedProduct?.id === product.id} onOpenChange={setDeleteDialogOpen}>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button aria-haspopup="true" size="icon" variant="ghost">
-                              <MoreHorizontal className="h-4 w-4" />
-                              <span className="sr-only">Toggle menu</span>
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuLabel>Aksi</DropdownMenuLabel>
-                             <DropdownMenuItem onSelect={() => handleEditClick(product)}>
-                                <Edit className="mr-2 h-4 w-4" /> Edit Detail
-                            </DropdownMenuItem>
-                             <AlertDialogTrigger asChild>
-                                <DropdownMenuItem onSelect={(e) => { e.preventDefault(); handleDeleteClick(product); }} className="text-destructive">
-                                    <Trash2 className="mr-2 h-4 w-4" /> Hapus
+              {loading ? (
+                Array.from({ length: 5 }).map((_, i) => (
+                    <TableRow key={i}>
+                        <TableCell><Skeleton className="h-5 w-32" /></TableCell>
+                        <TableCell><Skeleton className="h-5 w-20" /></TableCell>
+                        <TableCell><Skeleton className="h-5 w-24" /></TableCell>
+                        <TableCell><Skeleton className="h-5 w-20" /></TableCell>
+                        <TableCell><Skeleton className="h-8 w-8 rounded-full" /></TableCell>
+                    </TableRow>
+                ))
+              ) : (
+                filteredProducts.map((product) => (
+                    <TableRow key={product.id}>
+                    <TableCell className="font-medium">{product.name}</TableCell>
+                    <TableCell>{product.code}</TableCell>
+                    <TableCell>
+                        {new Intl.NumberFormat("id-ID", {
+                        style: "currency",
+                        currency: "IDR",
+                        minimumFractionDigits: 0,
+                        }).format(product.salePrice)}
+                    </TableCell>
+                    <TableCell>{product.stock} {product.unit}</TableCell>
+                    <TableCell>
+                        <AlertDialog open={isDeleteDialogOpen && selectedProduct?.id === product.id} onOpenChange={setDeleteDialogOpen}>
+                            <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button aria-haspopup="true" size="icon" variant="ghost">
+                                <MoreHorizontal className="h-4 w-4" />
+                                <span className="sr-only">Toggle menu</span>
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                                <DropdownMenuLabel>Aksi</DropdownMenuLabel>
+                                <DropdownMenuItem onSelect={() => handleEditClick(product)}>
+                                    <Edit className="mr-2 h-4 w-4" /> Edit Detail
                                 </DropdownMenuItem>
-                             </AlertDialogTrigger>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                         <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>Apakah Anda yakin?</AlertDialogTitle>
-                              <AlertDialogDescription>
-                                Tindakan ini tidak dapat dibatalkan. Ini akan menghapus produk
-                                "{selectedProduct?.name}" secara permanen.
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Batal</AlertDialogCancel>
-                              <AlertDialogAction onClick={handleDeleteConfirm} className="bg-destructive hover:bg-destructive/90">
-                                Ya, Hapus
-                              </AlertDialogAction>
-                            </AlertDialogFooter>
-                         </AlertDialogContent>
-                       </AlertDialog>
-                  </TableCell>
-                </TableRow>
-              ))}
+                                <AlertDialogTrigger asChild>
+                                    <DropdownMenuItem onSelect={(e) => { e.preventDefault(); handleDeleteClick(product); }} className="text-destructive">
+                                        <Trash2 className="mr-2 h-4 w-4" /> Hapus
+                                    </DropdownMenuItem>
+                                </AlertDialogTrigger>
+                            </DropdownMenuContent>
+                            </DropdownMenu>
+                            <AlertDialogContent>
+                                <AlertDialogHeader>
+                                <AlertDialogTitle>Apakah Anda yakin?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                    Tindakan ini tidak dapat dibatalkan. Ini akan menghapus produk
+                                    "{selectedProduct?.name}" secara permanen dari database.
+                                </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                <AlertDialogCancel>Batal</AlertDialogCancel>
+                                <AlertDialogAction onClick={handleDeleteConfirm} className="bg-destructive hover:bg-destructive/90">
+                                    Ya, Hapus
+                                </AlertDialogAction>
+                                </AlertDialogFooter>
+                            </AlertDialogContent>
+                        </AlertDialog>
+                    </TableCell>
+                    </TableRow>
+                ))
+              )}
             </TableBody>
           </Table>
         </CardContent>
