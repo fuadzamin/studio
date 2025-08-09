@@ -1,8 +1,9 @@
 // src/contexts/CustomerContext.tsx
 "use client";
 
-import { createContext, useState, ReactNode, useContext, useEffect } from 'react'; // Add useEffect and useContext
+import { createContext, useState, ReactNode, useContext, useEffect, useCallback } from 'react';
 import * as z from "zod";
+import { useToast } from "@/hooks/use-toast";
 
 // --- Zod Schema ---
 export const customerSchema = z.object({
@@ -18,110 +19,102 @@ export type CustomerFormValues = z.infer<typeof customerSchema>;
 export type Customer = CustomerFormValues & { id: string };
 
 
-// --- Initial Data (Optional, can be empty if always fetching from API) ---
-// If you always fetch from API, you can clear this array: const initialCustomers: Customer[] = [];
-const initialCustomers: Customer[] = [
-  {
-    id: "1",
-    name: "PT Sejahtera Abadi",
-    address: "Jl. Industri Raya No. 12, Jakarta",
-    contact: "081234567890",
-    email: "contact@sejahteraabadi.com",
-  },
-  {
-    id: "2",
-    name: "CV Maju Jaya",
-    address: "Jl. Pahlawan No. 45, Surabaya",
-    contact: "081298765432",
-    email: "info@majujaya.co.id",
-  },
-];
-
-
 // --- Context Definition ---
 interface CustomerContextType {
   customers: Customer[];
-  addCustomer: (customerData: CustomerFormValues) => void;
-  updateCustomer: (customerId: string, customerData: CustomerFormValues) => void;
-  deleteCustomer: (customerId: string) => void;
-  loading: boolean; // Add loading state
-  error: string | null; // Add error state
+  addCustomer: (customerData: CustomerFormValues) => Promise<void>;
+  updateCustomer: (customerId: string, customerData: CustomerFormValues) => Promise<void>;
+  deleteCustomer: (customerId: string) => Promise<void>;
+  loading: boolean;
+  error: string | null;
 }
 
-// Change default value to undefined
 export const CustomerContext = createContext<CustomerContextType | undefined>(undefined);
-
-// --- Custom Hook to Use Context ---
-export const useCustomer = () => { // <<< Add and Export this hook
-  const context = useContext(CustomerContext);
-  if (context === undefined) {
-    throw new Error('useCustomer must be used within a CustomerProvider');
-  }
-  return context;
-};
 
 
 // --- Provider Component ---
 export const CustomerProvider = ({ children }: { children: ReactNode }) => {
-  const [customers, setCustomers] = useState<Customer[]>([]); // Start with empty array if fetching from API
+  const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { toast } = useToast();
 
-  // Simulate data fetching when component mounts
-  useEffect(() => {
-    console.log("Fetching customer data...");
-    const fetchData = async () => {
-      try {
-        // --- Replace with your actual API fetching logic ---
-        // Example fetch:
-        // const response = await fetch('/api/customers');
-        // if (!response.ok) {
-        //   throw new Error(`HTTP error! status: ${response.status}`);
-        // }
-        // const data: Customer[] = await response.json();
-
-        // Simulate network delay and use initial data
-        await new Promise(resolve => setTimeout(resolve, 500)); // Simulate delay
-        const data: Customer[] = initialCustomers; // Use initial data for simulation
-
-        console.log("Customer data fetched:", data);
-        setCustomers(data);
-        setLoading(false);
-      } catch (err: any) {
-        console.error("Error fetching customer data:", err);
-        setError(err.message || "Failed to fetch customers");
-        setLoading(false); // Ensure loading is false even on error
+  const fetchCustomers = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await fetch('/api/customers');
+      if (!response.ok) {
+        throw new Error('Gagal mengambil data pelanggan');
       }
-    };
+      const data = await response.json();
+      setCustomers(data);
+    } catch (err: any) {
+      setError(err.message);
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    } finally {
+      setLoading(false);
+    }
+  }, [toast]);
 
-    fetchData();
-  }, []); // Empty dependency array means run only once on mount
+  useEffect(() => {
+    fetchCustomers();
+  }, [fetchCustomers]);
 
 
-  const addCustomer = (customerData: CustomerFormValues) => {
-    const newCustomer: Customer = {
-      ...customerData,
-      id: `cust_${new Date().getTime()}`,
-    };
-    setCustomers(prev => [...prev, newCustomer]);
-    // TODO: Add logic to send data to backend API if needed
+  const addCustomer = async (customerData: CustomerFormValues) => {
+    try {
+      const response = await fetch('/api/customers', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(customerData),
+      });
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Gagal menambahkan pelanggan');
+      }
+      toast({ title: "Sukses", description: "Pelanggan baru berhasil ditambahkan." });
+      await fetchCustomers(); // Refresh data
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    }
   };
 
-  const updateCustomer = (customerId: string, customerData: CustomerFormValues) => {
-     setCustomers(prev =>
-      prev.map(c =>
-        c.id === customerId ? { ...c, ...customerData, id: c.id } : c
-      )
-    );
-     // TODO: Add logic to send update to backend API if needed
+  const updateCustomer = async (customerId: string, customerData: CustomerFormValues) => {
+     try {
+      const response = await fetch(`/api/customers/${customerId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(customerData),
+      });
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Gagal memperbarui pelanggan');
+      }
+      toast({ title: "Sukses", description: "Data pelanggan berhasil diperbarui." });
+      await fetchCustomers(); // Refresh data
+    } catch (err: any) {
+       toast({ title: "Error", description: err.message, variant: "destructive" });
+    }
   };
 
-  const deleteCustomer = (customerId: string) => {
-    setCustomers(prev => prev.filter(c => c.id !== customerId));
-    // TODO: Add logic to send delete request to backend API if needed
+  const deleteCustomer = async (customerId: string) => {
+     try {
+      const response = await fetch(`/api/customers/${customerId}`, {
+        method: 'DELETE',
+      });
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Gagal menghapus pelanggan');
+      }
+      toast({ title: "Sukses", description: "Pelanggan berhasil dihapus." });
+      await fetchCustomers(); // Refresh data
+    } catch (err: any)      {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    }
   };
 
-  // Value provided by the context, including loading and error
+  // Value provided by the context
   const contextValue = {
       customers,
       addCustomer,
@@ -137,4 +130,13 @@ export const CustomerProvider = ({ children }: { children: ReactNode }) => {
       {children}
     </CustomerContext.Provider>
   );
+};
+
+// --- Custom Hook to Use Context ---
+export const useCustomer = () => {
+  const context = useContext(CustomerContext);
+  if (context === undefined) {
+    throw new Error('useCustomer must be used within a CustomerProvider');
+  }
+  return context;
 };

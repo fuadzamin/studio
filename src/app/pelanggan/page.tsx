@@ -48,16 +48,17 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { CustomerContext, Customer, CustomerFormValues, customerSchema } from "@/contexts/CustomerContext";
+import { CustomerContext, Customer, CustomerFormValues, customerSchema, useCustomer } from "@/contexts/CustomerContext";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { Skeleton } from "@/components/ui/skeleton";
 
 
 export default function PelangganPage() {
-  const context = useContext(CustomerContext);
+  const context = useCustomer();
   if (!context) {
     throw new Error("PelangganPage must be used within a CustomerProvider");
   }
-  const { customers, addCustomer, updateCustomer, deleteCustomer } = context;
+  const { customers, addCustomer, updateCustomer, deleteCustomer, loading } = context;
 
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
@@ -81,7 +82,12 @@ export default function PelangganPage() {
   
   const handleAddClick = () => {
     setSelectedCustomer(null);
-    form.reset();
+    form.reset({
+      name: "",
+      address: "",
+      contact: "",
+      email: "",
+    });
     setAddEditDialogOpen(true);
   };
   
@@ -96,31 +102,19 @@ export default function PelangganPage() {
     setDeleteDialogOpen(true);
   };
 
-  const handleDeleteConfirm = () => {
+  const handleDeleteConfirm = async () => {
     if (selectedCustomer) {
-      deleteCustomer(selectedCustomer.id);
-      toast({
-        title: "Sukses",
-        description: `Pelanggan "${selectedCustomer.name}" berhasil dihapus.`,
-      });
+      await deleteCustomer(selectedCustomer.id);
       setDeleteDialogOpen(false);
       setSelectedCustomer(null);
     }
   };
 
-  const onSubmit = (data: CustomerFormValues) => {
+  const onSubmit = async (data: CustomerFormValues) => {
     if (selectedCustomer) {
-      updateCustomer(selectedCustomer.id, data);
-      toast({
-        title: "Sukses",
-        description: "Data pelanggan berhasil diperbarui.",
-      });
+      await updateCustomer(selectedCustomer.id, data);
     } else {
-      addCustomer(data);
-      toast({
-        title: "Sukses",
-        description: "Pelanggan baru berhasil ditambahkan.",
-      });
+      await addCustomer(data);
     }
     setAddEditDialogOpen(false);
     setSelectedCustomer(null);
@@ -236,55 +230,67 @@ export default function PelangganPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredCustomers.map((customer) => (
-                <TableRow key={customer.id}>
-                  <TableCell className="font-medium">{customer.name}</TableCell>
-                  <TableCell>{customer.address}</TableCell>
-                  <TableCell>{customer.contact}</TableCell>
-                  <TableCell>{customer.email}</TableCell>
-                  <TableCell>
-                    <AlertDialog open={isDeleteDialogOpen && selectedCustomer?.id === customer.id} onOpenChange={setDeleteDialogOpen}>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button
-                            aria-haspopup="true"
-                            size="icon"
-                            variant="ghost"
-                          >
-                            <MoreHorizontal className="h-4 w-4" />
-                            <span className="sr-only">Toggle menu</span>
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuLabel>Aksi</DropdownMenuLabel>
-                          <DropdownMenuItem onSelect={() => handleEditClick(customer)}>
-                            <Edit className="mr-2 h-4 w-4" /> Edit
-                          </DropdownMenuItem>
-                          <AlertDialogTrigger asChild>
-                            <DropdownMenuItem onSelect={(e) => { e.preventDefault(); handleDeleteClick(customer) }} className="text-destructive">
-                              <Trash2 className="mr-2 h-4 w-4" /> Hapus
+              {loading ? (
+                 Array.from({ length: 3 }).map((_, i) => (
+                    <TableRow key={i}>
+                        <TableCell><Skeleton className="h-5 w-40" /></TableCell>
+                        <TableCell><Skeleton className="h-5 w-48" /></TableCell>
+                        <TableCell><Skeleton className="h-5 w-32" /></TableCell>
+                        <TableCell><Skeleton className="h-5 w-40" /></TableCell>
+                        <TableCell><Skeleton className="h-8 w-8 rounded-full" /></TableCell>
+                    </TableRow>
+                ))
+              ) : (
+                filteredCustomers.map((customer) => (
+                    <TableRow key={customer.id}>
+                    <TableCell className="font-medium">{customer.name}</TableCell>
+                    <TableCell>{customer.address}</TableCell>
+                    <TableCell>{customer.contact}</TableCell>
+                    <TableCell>{customer.email}</TableCell>
+                    <TableCell>
+                        <AlertDialog open={isDeleteDialogOpen && selectedCustomer?.id === customer.id} onOpenChange={setDeleteDialogOpen}>
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                            <Button
+                                aria-haspopup="true"
+                                size="icon"
+                                variant="ghost"
+                            >
+                                <MoreHorizontal className="h-4 w-4" />
+                                <span className="sr-only">Toggle menu</span>
+                            </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                            <DropdownMenuLabel>Aksi</DropdownMenuLabel>
+                            <DropdownMenuItem onSelect={() => handleEditClick(customer)}>
+                                <Edit className="mr-2 h-4 w-4" /> Edit
                             </DropdownMenuItem>
-                           </AlertDialogTrigger>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                       <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>Apakah Anda yakin?</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              Tindakan ini tidak dapat dibatalkan. Ini akan menghapus pelanggan "{selectedCustomer?.name}" secara permanen.
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Batal</AlertDialogCancel>
-                            <AlertDialogAction onClick={handleDeleteConfirm} className="bg-destructive hover:bg-destructive/90">
-                              Ya, Hapus
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                       </AlertDialogContent>
-                    </AlertDialog>
-                  </TableCell>
-                </TableRow>
-              ))}
+                            <AlertDialogTrigger asChild>
+                                <DropdownMenuItem onSelect={(e) => { e.preventDefault(); handleDeleteClick(customer) }} className="text-destructive">
+                                <Trash2 className="mr-2 h-4 w-4" /> Hapus
+                                </DropdownMenuItem>
+                            </AlertDialogTrigger>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+                        <AlertDialogContent>
+                            <AlertDialogHeader>
+                                <AlertDialogTitle>Apakah Anda yakin?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                Tindakan ini tidak dapat dibatalkan. Ini akan menghapus pelanggan "{selectedCustomer?.name}" secara permanen.
+                                </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                                <AlertDialogCancel>Batal</AlertDialogCancel>
+                                <AlertDialogAction onClick={handleDeleteConfirm} className="bg-destructive hover:bg-destructive/90">
+                                Ya, Hapus
+                                </AlertDialogAction>
+                            </AlertDialogFooter>
+                        </AlertDialogContent>
+                        </AlertDialog>
+                    </TableCell>
+                    </TableRow>
+                ))
+              )}
             </TableBody>
           </Table>
         </CardContent>
