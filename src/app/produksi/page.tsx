@@ -78,6 +78,7 @@ import {
 import { format } from "date-fns";
 import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Label } from "@/components/ui/label";
 
 
 type ProductionOrder = {
@@ -306,14 +307,51 @@ function ProductionOrderTab({ onProductionSuccess }: { onProductionSuccess: (ord
     );
 }
 
-function ProductionHistoryTab({ history }: { history: ProductionOrder[] }) {
+function ProductionHistoryTab({ history, setHistory }: { history: ProductionOrder[], setHistory: React.Dispatch<React.SetStateAction<ProductionOrder[]>> }) {
+    const { toast } = useToast();
     const [openItemId, setOpenItemId] = useState<string | null>(null);
+    const [isEditDialogOpen, setEditDialogOpen] = useState(false);
+    const [isDeleteDialogOpen, setDeleteDialogOpen] = useState(false);
+    const [selectedOrder, setSelectedOrder] = useState<ProductionOrder | null>(null);
+    const [editedQuantity, setEditedQuantity] = useState(0);
+
+    const handleEditClick = (order: ProductionOrder) => {
+        setSelectedOrder(order);
+        setEditedQuantity(order.quantity);
+        setEditDialogOpen(true);
+    };
+
+    const handleDeleteClick = (order: ProductionOrder) => {
+        setSelectedOrder(order);
+        setDeleteDialogOpen(true);
+    };
+
+    const handleDeleteConfirm = () => {
+        if (selectedOrder) {
+            setHistory(prev => prev.filter(o => o.id !== selectedOrder.id));
+            toast({ title: "Sukses", description: "Riwayat produksi berhasil dihapus." });
+            setDeleteDialogOpen(false);
+            setSelectedOrder(null);
+        }
+    };
+    
+    const handleSaveEdit = () => {
+        if (selectedOrder && editedQuantity > 0) {
+             setHistory(prev => prev.map(o => o.id === selectedOrder.id ? {...o, quantity: editedQuantity} : o));
+             toast({ title: "Sukses", description: "Riwayat produksi berhasil diperbarui." });
+             setEditDialogOpen(false);
+             setSelectedOrder(null);
+        } else {
+             toast({ title: "Gagal", description: "Jumlah harus lebih besar dari 0.", variant: "destructive" });
+        }
+    };
+
 
     return (
         <Card>
             <CardHeader>
                 <CardTitle>Riwayat Perintah Produksi</CardTitle>
-                <CardDescription>Daftar semua perintah produksi yang telah selesai. Klik baris untuk melihat detail material.</CardDescription>
+                <CardDescription>Daftar semua perintah produksi yang telah selesai.</CardDescription>
             </CardHeader>
             <CardContent>
                 <Table>
@@ -324,6 +362,7 @@ function ProductionHistoryTab({ history }: { history: ProductionOrder[] }) {
                             <TableHead>Nama Produk</TableHead>
                             <TableHead>Jumlah</TableHead>
                             <TableHead>Status</TableHead>
+                            <TableHead><span className="sr-only">Aksi</span></TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -331,10 +370,10 @@ function ProductionHistoryTab({ history }: { history: ProductionOrder[] }) {
                             history.map((order) => (
                                 <Collapsible asChild key={order.id} open={openItemId === order.id} onOpenChange={() => setOpenItemId(prev => prev === order.id ? null : order.id)}>
                                     <>
-                                        <TableRow className="cursor-pointer">
+                                        <TableRow>
                                             <TableCell>
                                                 <CollapsibleTrigger asChild>
-                                                    <Button variant="ghost" size="sm" className="w-9 p-0">
+                                                    <Button variant="ghost" size="sm" className="w-9 p-0 data-[state=open]:bg-muted">
                                                         {openItemId === order.id ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
                                                         <span className="sr-only">Toggle Details</span>
                                                     </Button>
@@ -346,10 +385,71 @@ function ProductionHistoryTab({ history }: { history: ProductionOrder[] }) {
                                             <TableCell>
                                                 <Badge>{order.status}</Badge>
                                             </TableCell>
+                                            <TableCell className="text-right">
+                                                <AlertDialog open={isDeleteDialogOpen && selectedOrder?.id === order.id} onOpenChange={setDeleteDialogOpen}>
+                                                    <Dialog open={isEditDialogOpen && selectedOrder?.id === order.id} onOpenChange={setEditDialogOpen}>
+                                                         <DropdownMenu>
+                                                            <DropdownMenuTrigger asChild>
+                                                              <Button aria-haspopup="true" size="icon" variant="ghost">
+                                                                <MoreHorizontal className="h-4 w-4" />
+                                                                <span className="sr-only">Toggle menu</span>
+                                                              </Button>
+                                                            </DropdownMenuTrigger>
+                                                            <DropdownMenuContent align="end">
+                                                              <DropdownMenuLabel>Aksi</DropdownMenuLabel>
+                                                              <DropdownMenuItem onSelect={() => handleEditClick(order)}>
+                                                                <Edit className="mr-2 h-4 w-4" /> Edit
+                                                              </DropdownMenuItem>
+                                                              <AlertDialogTrigger asChild>
+                                                                 <DropdownMenuItem onSelect={(e) => { e.preventDefault(); handleDeleteClick(order); }} className="text-destructive">
+                                                                    <Trash2 className="mr-2 h-4 w-4" /> Hapus
+                                                                </DropdownMenuItem>
+                                                              </AlertDialogTrigger>
+                                                            </DropdownMenuContent>
+                                                          </DropdownMenu>
+                                                        <DialogContent>
+                                                            <DialogHeader>
+                                                                <DialogTitle>Edit Riwayat Produksi</DialogTitle>
+                                                                <DialogDescription>
+                                                                    Ubah jumlah produksi. Perubahan ini tidak akan mempengaruhi stok.
+                                                                </DialogDescription>
+                                                            </DialogHeader>
+                                                            <div className="grid gap-4 py-4">
+                                                                <div className="grid grid-cols-4 items-center gap-4">
+                                                                    <Label htmlFor="product-name" className="text-right">Produk</Label>
+                                                                    <Input id="product-name" value={selectedOrder?.productName} disabled className="col-span-3"/>
+                                                                </div>
+                                                                <div className="grid grid-cols-4 items-center gap-4">
+                                                                    <Label htmlFor="quantity" className="text-right">Jumlah</Label>
+                                                                    <Input id="quantity" type="number" value={editedQuantity} onChange={(e) => setEditedQuantity(Number(e.target.value))} className="col-span-3"/>
+                                                                </div>
+                                                            </div>
+                                                            <DialogFooter>
+                                                                <Button onClick={() => setEditDialogOpen(false)} variant="outline">Batal</Button>
+                                                                <Button onClick={handleSaveEdit}>Simpan Perubahan</Button>
+                                                            </DialogFooter>
+                                                        </DialogContent>
+                                                    </Dialog>
+                                                    <AlertDialogContent>
+                                                    <AlertDialogHeader>
+                                                      <AlertDialogTitle>Apakah Anda yakin?</AlertDialogTitle>
+                                                      <AlertDialogDescription>
+                                                        Tindakan ini akan menghapus riwayat produksi untuk "{selectedOrder?.productName}" secara permanen. Tindakan ini tidak akan mengembalikan stok material atau mengurangi stok produk jadi.
+                                                      </AlertDialogDescription>
+                                                    </AlertDialogHeader>
+                                                    <AlertDialogFooter>
+                                                      <AlertDialogCancel>Batal</AlertDialogCancel>
+                                                      <AlertDialogAction onClick={handleDeleteConfirm} className="bg-destructive hover:bg-destructive/90">
+                                                        Ya, Hapus Riwayat
+                                                      </AlertDialogAction>
+                                                    </AlertDialogFooter>
+                                                  </AlertDialogContent>
+                                                </AlertDialog>
+                                            </TableCell>
                                         </TableRow>
                                         <CollapsibleContent asChild>
                                             <tr className="bg-muted/50">
-                                                <td colSpan={5} className="p-0">
+                                                <td colSpan={6} className="p-0">
                                                     <div className="p-4">
                                                         <h4 className="font-semibold mb-2 ml-4">Material yang Digunakan:</h4>
                                                         <Table>
@@ -379,7 +479,7 @@ function ProductionHistoryTab({ history }: { history: ProductionOrder[] }) {
                             ))
                         ) : (
                              <TableRow>
-                                <TableCell colSpan={5} className="h-24 text-center">
+                                <TableCell colSpan={6} className="h-24 text-center">
                                     Belum ada riwayat produksi.
                                 </TableCell>
                             </TableRow>
@@ -783,7 +883,7 @@ export default function ProduksiPage() {
           <ProductionOrderTab onProductionSuccess={handleAddProductionHistory} />
         </TabsContent>
          <TabsContent value="history">
-          <ProductionHistoryTab history={productionHistory} />
+          <ProductionHistoryTab history={productionHistory} setHistory={setProductionHistory} />
         </TabsContent>
         <TabsContent value="bom">
           <BomTab />
@@ -795,3 +895,5 @@ export default function ProduksiPage() {
     </div>
   );
 }
+
+    
