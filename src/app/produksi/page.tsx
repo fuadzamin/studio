@@ -143,7 +143,7 @@ function ProductionOrderTab() {
         });
     }, [watchedProductId, watchedQuantity, products, materials]);
 
-    const isProductionPossible = materialRequirements.every(item => item.isSufficient);
+    const isProductionPossible = materialRequirements.length > 0 && materialRequirements.every(item => item.isSufficient);
 
     const onSubmit = (data: ProductionOrderFormValues) => {
         const selectedProduct = products.find(p => p.id === data.productId);
@@ -235,7 +235,7 @@ function ProductionOrderTab() {
                                         </FormItem>
                                     )}
                                 />
-                                <Button type="submit" className="w-full" disabled={!isProductionPossible || materialRequirements.length === 0}>
+                                <Button type="submit" className="w-full" disabled={!watchedProductId || !watchedQuantity}>
                                     <Factory className="mr-2 h-4 w-4"/>
                                     Mulai Produksi
                                 </Button>
@@ -243,47 +243,6 @@ function ProductionOrderTab() {
                         </Form>
                     </CardContent>
                 </Card>
-                 {materialRequirements.length > 0 && (
-                     <Card>
-                         <CardHeader>
-                             <CardTitle className="flex items-center text-lg">
-                                 <Package className="mr-2 h-5 w-5" />
-                                 Kebutuhan Material
-                             </CardTitle>
-                             <CardDescription>
-                                 Berikut adalah material yang dibutuhkan untuk memproduksi {watchedQuantity} unit.
-                             </CardDescription>
-                         </CardHeader>
-                         <CardContent>
-                             <Table>
-                                 <TableHeader>
-                                     <TableRow>
-                                         <TableHead>Material</TableHead>
-                                         <TableHead className="text-right">Butuh</TableHead>
-                                         <TableHead className="text-right">Stok</TableHead>
-                                     </TableRow>
-                                 </TableHeader>
-                                 <TableBody>
-                                     {materialRequirements.map(item => (
-                                         <TableRow key={item.name} className={!item.isSufficient ? "bg-destructive/10" : ""}>
-                                             <TableCell className="font-medium">{item.name}</TableCell>
-                                             <TableCell className="text-right">{item.required} {item.unit}</TableCell>
-                                             <TableCell className={`text-right ${item.isSufficient ? 'text-muted-foreground' : 'text-destructive font-bold'}`}>
-                                                {item.stock} {item.unit}
-                                             </TableCell>
-                                         </TableRow>
-                                     ))}
-                                 </TableBody>
-                             </Table>
-                             {!isProductionPossible && (
-                                <div className="mt-4 p-3 rounded-md bg-destructive/10 text-destructive text-sm flex items-center gap-2">
-                                     <AlertCircle className="h-4 w-4" />
-                                     <span>Stok material tidak mencukupi untuk memulai produksi.</span>
-                                </div>
-                             )}
-                         </CardContent>
-                     </Card>
-                 )}
             </div>
             <div className="md:col-span-2">
                 <Card>
@@ -714,5 +673,3 @@ export default function ProduksiPage() {
     </div>
   );
 }
-
-      
