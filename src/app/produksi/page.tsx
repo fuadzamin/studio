@@ -322,10 +322,16 @@ function ProductionOrderTab({ onProductionSuccess }: { onProductionSuccess: (ord
 
 function ProductionHistoryTab({ history, setHistory }: { history: ProductionOrder[], setHistory: React.Dispatch<React.SetStateAction<ProductionOrder[]>> }) {
     const { toast } = useToast();
+    const productContext = useContext(ProductContext);
     const [openItemId, setOpenItemId] = useState<string | null>(null);
     const [isEditDialogOpen, setEditDialogOpen] = useState(false);
     const [isDeleteDialogOpen, setDeleteDialogOpen] = useState(false);
     const [selectedOrder, setSelectedOrder] = useState<ProductionOrder | null>(null);
+
+    if (!productContext) {
+        throw new Error("ProductionHistoryTab must be used within a ProductProvider");
+    }
+    const { products, increaseProductStock, reduceProductStock } = productContext;
     
     const form = useForm<EditProductionHistoryFormValues>();
     const { fields, append, remove } = useFieldArray({
@@ -350,6 +356,14 @@ function ProductionHistoryTab({ history, setHistory }: { history: ProductionOrde
 
     const handleDeleteConfirm = () => {
         if (selectedOrder) {
+            // Logic to revert stock if a "Selesai" order is deleted
+            if (selectedOrder.status === 'Selesai') {
+                const product = products.find(p => p.name === selectedOrder.productName);
+                if (product) {
+                    reduceProductStock(product.id, selectedOrder.quantity);
+                    toast({ title: "Info Stok", description: `Stok ${product.name} telah dikembalikan karena riwayat dihapus.` });
+                }
+            }
             setHistory(prev => prev.filter(o => o.id !== selectedOrder.id));
             toast({ title: "Sukses", description: "Riwayat produksi berhasil dihapus." });
             setDeleteDialogOpen(false);
@@ -359,6 +373,28 @@ function ProductionHistoryTab({ history, setHistory }: { history: ProductionOrde
     
     const onSaveEditSubmit = (data: EditProductionHistoryFormValues) => {
         if (selectedOrder) {
+             const oldStatus = selectedOrder.status;
+             const newStatus = data.status;
+             const product = products.find(p => p.name === selectedOrder.productName);
+
+             if (product) {
+                // Case 1: Status changes TO "Selesai"
+                if (newStatus === 'Selesai' && oldStatus !== 'Selesai') {
+                    increaseProductStock(product.id, selectedOrder.quantity);
+                    toast({ title: "Stok Diperbarui", description: `Stok ${product.name} telah ditambahkan.` });
+                }
+                // Case 2: Status changes FROM "Selesai"
+                else if (oldStatus === 'Selesai' && newStatus !== 'Selesai') {
+                    const result = reduceProductStock(product.id, selectedOrder.quantity);
+                     if (result.success) {
+                        toast({ title: "Stok Diperbarui", description: `Stok ${product.name} telah dikurangi.` });
+                    } else {
+                        toast({ title: "Gagal Mengubah Status", description: result.message, variant: "destructive" });
+                        return; // Prevent status change if stock reversal fails
+                    }
+                }
+             }
+
              setHistory(prev => prev.map(o => o.id === selectedOrder.id ? {
                 ...o, 
                 quantity: data.quantity,
@@ -437,7 +473,7 @@ function ProductionHistoryTab({ history, setHistory }: { history: ProductionOrde
                                                                 <DialogHeader>
                                                                     <DialogTitle>Edit Riwayat Produksi</DialogTitle>
                                                                     <DialogDescription>
-                                                                        Ubah detail riwayat produksi. Perubahan ini tidak akan mempengaruhi stok.
+                                                                        Ubah detail riwayat produksi. Perubahan status akan mempengaruhi stok barang jadi.
                                                                     </DialogDescription>
                                                                 </DialogHeader>
                                                                 <div className="grid gap-4 py-4 max-h-[70vh] overflow-y-auto pr-4">
@@ -517,7 +553,7 @@ function ProductionHistoryTab({ history, setHistory }: { history: ProductionOrde
                                                     <AlertDialogHeader>
                                                       <AlertDialogTitle>Apakah Anda yakin?</AlertDialogTitle>
                                                       <AlertDialogDescription>
-                                                        Tindakan ini akan menghapus riwayat produksi untuk "{selectedOrder?.productName}" secara permanen. Tindakan ini tidak akan mengembalikan stok material atau mengurangi stok produk jadi.
+                                                        Tindakan ini akan menghapus riwayat produksi untuk "{selectedOrder?.productName}" secara permanen. Jika statusnya "Selesai", stok barang jadi juga akan dikurangi.
                                                       </AlertDialogDescription>
                                                     </AlertDialogHeader>
                                                     <AlertDialogFooter>
@@ -978,7 +1014,3 @@ export default function ProduksiPage() {
     </div>
   );
 }
-
-    
-
-    
